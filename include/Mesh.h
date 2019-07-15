@@ -19,6 +19,8 @@ NASTÊPNA WERSJA:
 */
 struct Mesh : public Resource
 {
+	static const ResourceType Type = ResourceType::Mesh;
+
 	enum MESH_FLAGS
 	{
 		F_TANGENTS = 1 << 0,
@@ -142,7 +144,7 @@ struct Mesh : public Resource
 	static void MeshInit();
 
 	void SetupBoneMatrices();
-	void Load(StreamReader& stream, IDirect3DDevice9* device);
+	void Load(StreamReader& stream, IDirect3DDevice9* device, ResourceManager* res_mgr);
 	void LoadMetadata(StreamReader& stream);
 	void LoadHeader(StreamReader& stream);
 	void SetVertexSizeDecl();

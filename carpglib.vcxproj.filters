@@ -5,7 +5,6 @@
     <ClInclude Include="include\DirectX.h" />
     <ClInclude Include="include\Engine.h" />
     <ClInclude Include="include\EngineCore.h" />
-    <ClInclude Include="include\StartupOptions.h" />
     <ClInclude Include="include\Algorithm.h">
       <Filter>core</Filter>
     </ClInclude>
@@ -237,9 +236,6 @@
     <ClInclude Include="include\Core.h">
       <Filter>core</Filter>
     </ClInclude>
-    <ClInclude Include="include\CameraBase.h">
-      <Filter>entity</Filter>
-    </ClInclude>
     <ClInclude Include="include\Key.h">
       <Filter>const</Filter>
     </ClInclude>
@@ -253,6 +249,18 @@
       <Filter>core</Filter>
     </ClInclude>
     <ClInclude Include="include\EnginePch.h" />
+    <ClInclude Include="include\SceneNode.h">
+      <Filter>entity</Filter>
+    </ClInclude>
+    <ClInclude Include="include\SceneManager.h">
+      <Filter>systems</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Scene.h">
+      <Filter>entity</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Camera.h">
+      <Filter>entity</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source\Engine.cpp" />
@@ -457,6 +465,12 @@
     <ClCompile Include="source\EnginePch.cpp" />
     <ClCompile Include="source\Resource.cpp">
       <Filter>resources</Filter>
+    </ClCompile>
+    <ClCompile Include="source\SceneManager.cpp">
+      <Filter>systems</Filter>
+    </ClCompile>
+    <ClCompile Include="source\Camera.cpp">
+      <Filter>entity</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

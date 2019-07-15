@@ -106,6 +106,6 @@ namespace gui
 		} check_box_group;
 
 		~Layout();
-		void LoadDefault();
+		void LoadDefault(ResourceManager* res_mgr);
 	};
 }

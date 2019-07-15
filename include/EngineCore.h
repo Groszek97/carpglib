@@ -4,11 +4,11 @@
 #include "FileFormat.h"
 
 // Engine types
-struct CameraBase;
+struct Camera;
 struct Font;
 struct MeshInstance;
 struct ParticleEmitter;
-struct StartupOptions;
+struct SceneNode;
 struct TaskData;
 struct Terrain;
 struct TrailParticleEmitter;
@@ -21,6 +21,8 @@ class Pak;
 class Render;
 class RenderTarget;
 class ResourceManager;
+class Scene;
+class SceneManager;
 class ShaderHandler;
 class SoundManager;
 class SuperShader;

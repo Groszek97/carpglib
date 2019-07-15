@@ -34,10 +34,10 @@ class Render
 public:
 	Render();
 	~Render();
-	void Init(StartupOptions& options);
+	void Init(SceneManager* scene_mgr);
 	bool Reset(bool force);
 	void WaitReset();
-	void Draw(bool call_present = true);
+	void Draw();
 	bool CheckDisplay(const Int2& size, int& hz); // dla zera zwraca najlepszy hz
 	void RegisterShader(ShaderHandler* shader);
 	ID3DXEffect* CompileShader(cstring name);
@@ -69,6 +69,7 @@ public:
 	void SetTarget(RenderTarget* target);
 	void SetTextureAddressMode(TextureAddressMode mode);
 	void SetShadersDir(cstring dir) { shaders_dir = dir; }
+	void SetAdapter(int adapter) { assert(!initialized); used_adapter = adapter; }
 
 private:
 	void GatherParams(D3DPRESENT_PARAMETERS& d3dpp);
@@ -82,11 +83,12 @@ private:
 	IDirect3D9* d3d;
 	IDirect3DDevice9* device;
 	ID3DXSprite* sprite;
+	SceneManager* scene_mgr;
 	vector<ShaderHandler*> shaders;
 	vector<RenderTarget*> targets;
 	RenderTarget* current_target;
 	SURFACE current_surf;
 	string shaders_dir;
 	int used_adapter, shader_version, refresh_hz, multisampling, multisampling_quality;
-	bool vsync, lost_device, res_freed, r_alphatest, r_nozwrite, r_nocull, r_alphablend;
+	bool initialized, vsync, lost_device, res_freed, r_alphatest, r_nozwrite, r_nocull, r_alphablend;
 };

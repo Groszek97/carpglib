@@ -3,12 +3,11 @@
 #include "Engine.h"
 #include "ResourceManager.h"
 #include "SoundManager.h"
-#include "StartupOptions.h"
-#include "DebugDrawer.h"
-#include "DirectX.h"
 #include "Physics.h"
 #include "Render.h"
+#include "SceneManager.h"
 #include "App.h"
+#include "WindowsIncludes.h"
 
 //-----------------------------------------------------------------------------
 const Int2 Engine::MIN_WINDOW_SIZE = Int2(800, 600);
@@ -19,12 +18,14 @@ Engine* Engine::engine;
 
 //=================================================================================================
 Engine::Engine() : app(nullptr), initialized(false), shutdown(false), timer(false), hwnd(nullptr), cursor_visible(true), replace_cursor(false),
-locked_cursor(true), active(false), activation_point(-1, -1), phy_world(nullptr)
+locked_cursor(true), active(false), activation_point(-1, -1), phy_world(nullptr), title("Window"), force_pos(-1, -1), force_size(-1, -1), hidden_window(false)
 {
 	engine = this;
 	if(!Logger::global)
 		Logger::global = new Logger;
 	render.reset(new Render);
+	res_mgr.reset(new ResourceManager);
+	scene_mgr.reset(new SceneManager);
 	sound_mgr.reset(new SoundManager);
 }
 
@@ -106,6 +107,14 @@ bool Engine::ChangeMode(const Int2& size, bool new_fullscreen, int hz)
 	if(size == wnd_size && new_fullscreen == fullscreen && hz == render->GetRefreshRate())
 		return false;
 
+	if(!initialized)
+	{
+		fullscreen = new_fullscreen;
+		wnd_size = size;
+		render->SetRefreshRateInternal(hz);
+		return true;
+	}
+
 	if(!render->CheckDisplay(size, hz))
 	{
 		Error("Engine: Can't change display mode to %dx%d (%d Hz, %s).", size.x, size.y, hz, new_fullscreen ? "fullscreen" : "windowed");
@@ -135,7 +144,7 @@ void Engine::Cleanup()
 
 	app->OnCleanup();
 
-	ResourceManager::Get().Cleanup();
+	res_mgr->Cleanup();
 
 	render.reset();
 
@@ -400,9 +409,9 @@ bool Engine::MsgToKey(uint msg, uint wParam, byte& key, int& result)
 
 //=================================================================================================
 // Create window
-void Engine::InitWindow(StartupOptions& options)
+void Engine::InitWindow()
 {
-	assert(options.title);
+	wnd_size = Int2::Max(wnd_size, MIN_WINDOW_SIZE);
 
 	// register window class
 	WNDCLASSEX wc = {
@@ -416,7 +425,7 @@ void Engine::InitWindow(StartupOptions& options)
 
 	// create window
 	AdjustWindowSize();
-	hwnd = CreateWindowEx(0, "Krystal", options.title, fullscreen ? WS_POPUPWINDOW : WS_OVERLAPPEDWINDOW, 0, 0, real_size.x, real_size.y,
+	hwnd = CreateWindowEx(0, "Krystal", title.c_str(), fullscreen ? WS_POPUPWINDOW : WS_OVERLAPPEDWINDOW, 0, 0, real_size.x, real_size.y,
 		nullptr, nullptr, GetModuleHandle(nullptr), nullptr);
 	if(!hwnd)
 		throw Format("Failed to create window (%d).", GetLastError());
@@ -424,20 +433,20 @@ void Engine::InitWindow(StartupOptions& options)
 	// position window
 	if(!fullscreen)
 	{
-		if(options.force_pos != Int2(-1, -1) || options.force_size != Int2(-1, -1))
+		if(force_pos != Int2(-1, -1) || force_size != Int2(-1, -1))
 		{
 			// set window position from config file
 			Rect rect;
 			GetWindowRect(hwnd, (RECT*)&rect);
-			if(options.force_pos.x != -1)
-				rect.Left() = options.force_pos.x;
-			if(options.force_pos.y != -1)
-				rect.Top() = options.force_pos.y;
+			if(force_pos.x != -1)
+				rect.Left() = force_pos.x;
+			if(force_pos.y != -1)
+				rect.Top() = force_pos.y;
 			Int2 size = real_size;
-			if(options.force_size.x != -1)
-				size.x = options.force_size.x;
-			if(options.force_size.y != -1)
-				size.y = options.force_size.y;
+			if(force_size.x != -1)
+				size.x = force_size.x;
+			if(force_size.y != -1)
+				size.y = force_size.y;
 			SetWindowPos(hwnd, 0, rect.Left(), rect.Top(), size.x, size.y, SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOZORDER);
 		}
 		else
@@ -451,7 +460,7 @@ void Engine::InitWindow(StartupOptions& options)
 	}
 
 	// show window
-	ShowWindow(hwnd, options.hidden_window ? SW_HIDE : SW_SHOWNORMAL);
+	ShowWindow(hwnd, hidden_window ? SW_HIDE : SW_SHOWNORMAL);
 
 	// reset cursor
 	replace_cursor = true;
@@ -508,17 +517,14 @@ void Engine::ShowError(cstring msg, Logger::Level level)
 
 //=================================================================================================
 // Initialize and start engine
-bool Engine::Start(App* app, StartupOptions& options)
+bool Engine::Start(App* app)
 {
-	// set parameters
 	this->app = app;
-	fullscreen = options.fullscreen;
-	wnd_size = Int2::Max(options.size, MIN_WINDOW_SIZE);
 
 	// initialize engine
 	try
 	{
-		Init(options);
+		Init();
 	}
 	catch(cstring e)
 	{
@@ -554,13 +560,13 @@ bool Engine::Start(App* app, StartupOptions& options)
 }
 
 //=================================================================================================
-void Engine::Init(StartupOptions& options)
+void Engine::Init()
 {
-	InitWindow(options);
-	render->Init(options);
-	sound_mgr->Init(options);
+	InitWindow();
+	render->Init(scene_mgr.get());
+	sound_mgr->Init();
 	phy_world = CustomCollisionWorld::Init();
-	ResourceManager::Get().Init(render->GetDevice(), sound_mgr.get());
+	res_mgr->Init(render->GetDevice(), sound_mgr.get());
 	initialized = true;
 }
 
@@ -601,6 +607,16 @@ void Engine::LockCursor()
 		ShowCursor(false);
 		PlaceCursor();
 	}
+}
+
+//=================================================================================================
+void Engine::HideWindow(bool hide)
+{
+	if(hide == hidden_window)
+		return;
+	hidden_window = hide;
+	if(initialized)
+		ShowWindow(hwnd, hide ? SW_HIDE : SW_SHOWNORMAL);
 }
 
 //=================================================================================================

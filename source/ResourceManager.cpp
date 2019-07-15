@@ -8,7 +8,6 @@
 #include "Pak.h"
 
 //-----------------------------------------------------------------------------
-ResourceManager ResourceManager::manager;
 ObjectPool<ResourceManager::TaskDetail> ResourceManager::task_pool;
 
 //=================================================================================================
@@ -337,6 +336,15 @@ void ResourceManager::LoadResource(Resource* res)
 }
 
 //=================================================================================================
+Resource* ResourceManager::LoadResource(Cstring filename, ResourceType type)
+{
+	Resource* res = GetResource(filename, type);
+	if(res->state != ResourceState::Loaded)
+		LoadResourceInternal(res);
+	return res;
+}
+
+//=================================================================================================
 ResourceType ResourceManager::ExtToResourceType(cstring ext)
 {
 	auto it = exts.find(ext);
@@ -580,12 +588,12 @@ void ResourceManager::LoadMesh(Mesh* mesh)
 		if(mesh->IsFile())
 		{
 			FileReader f(mesh->path);
-			mesh->Load(f, device);
+			mesh->Load(f, device, this);
 		}
 		else
 		{
 			MemoryReader f(mesh->GetBuffer());
-			mesh->Load(f, device);
+			mesh->Load(f, device, this);
 		}
 	}
 	catch(cstring err)

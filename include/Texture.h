@@ -6,6 +6,10 @@
 //-----------------------------------------------------------------------------
 struct Texture : public Resource
 {
+	static const ResourceType Type = ResourceType::Texture;
+	typedef TEX RawType;
+	static TEX GetRaw(Texture* tex) { return tex->tex; }
+
 	TEX tex;
 
 	Texture() : tex(nullptr) {}

@@ -10,6 +10,7 @@
 #include "ResourceManager.h"
 #include "TextBox.h"
 #include "File.h"
+#include "Engine.h"
 
 using namespace gui;
 
@@ -44,7 +45,7 @@ bool PickFileDialogItemSort(const PickFileDialogItem* i1, const PickFileDialogIt
 
 PickFileDialog* PickFileDialog::self;
 
-PickFileDialog::PickFileDialog()
+PickFileDialog::PickFileDialog(ResourceManager* res_mgr)
 {
 	SetAreaSize(Int2(640, 480));
 
@@ -104,7 +105,7 @@ PickFileDialog::PickFileDialog()
 	label_preview->SetAlign(DTF_CENTER | DTF_VCENTER);
 	Add(label_preview);
 
-	tex_dir = ResourceManager::Get<Texture>().GetLoadedRaw("dir.png");
+	tex_dir = res_mgr->LoadRaw<Texture>("dir.png");
 
 	preview_types["txt"] = PreviewType::Text;
 	preview_types["bmp"] = PreviewType::Image;
@@ -130,7 +131,7 @@ void PickFileDialog::Destroy()
 void PickFileDialog::Show(const PickFileDialogOptions& options)
 {
 	if(!self)
-		self = new PickFileDialog;
+		self = new PickFileDialog(Engine::Get().GetResourceManager());
 	self->Setup(options);
 	GUI.GetOverlay()->ShowDialog(self);
 }
@@ -513,7 +514,7 @@ void PickFileDialog::SetupPreview()
 	case PreviewType::Image:
 		{
 			draw_box->visible = true;
-			draw_box->SetTexture(ResourceManager::Get<Texture>().GetLoadedRaw(item->path));
+			draw_box->SetTexture(res_mgr->LoadRaw<Texture>(item->path));
 		}
 		break;
 	}

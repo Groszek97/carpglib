@@ -49,7 +49,7 @@ namespace gui
 			vector<string> exts;
 		};
 
-		PickFileDialog();
+		PickFileDialog(ResourceManager* res_mgr);
 		~PickFileDialog();
 
 		void Setup(const PickFileDialogOptions& options);
@@ -63,6 +63,7 @@ namespace gui
 		void SetupPreview();
 
 		static PickFileDialog* self;
+		ResourceManager* res_mgr;
 		ListBox* list_box, *list_extensions;
 		TextBox* tb_path, *tb_filename, *tb_preview;
 		Button* bt_select, *bt_cancel;

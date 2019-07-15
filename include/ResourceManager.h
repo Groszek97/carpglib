@@ -3,6 +3,7 @@
 //-----------------------------------------------------------------------------
 #include "Texture.h"
 #include "Sound.h"
+#include "Mesh.h"
 #include "Timer.h"
 
 //-----------------------------------------------------------------------------
@@ -324,17 +325,6 @@ public:
 	ResourceManager();
 	~ResourceManager();
 
-	template<typename T>
-	static auto Get()
-	{
-		return ResourceManager::Get().For<T>();
-	}
-
-	static ResourceManager& Get()
-	{
-		return manager;
-	}
-
 	void Init(IDirect3DDevice9* device, SoundManager* sound_mgr);
 	void Cleanup();
 
@@ -358,6 +348,20 @@ public:
 	{
 		TypeManager<T> inst(*this);
 		return inst;
+	}
+
+	// Return resource, load it if required, throws if not exists
+	template<typename T>
+	T* Load(Cstring filename)
+	{
+		return static_cast<T*>(LoadResource(filename, T::Type));
+	}
+
+	template<typename T>
+	typename T::RawType LoadRaw(Cstring filename)
+	{
+		T* res = Load<T>(filename);
+		return T::GetRaw(res);
 	}
 
 private:
@@ -387,6 +391,7 @@ private:
 	void AddLoadTask(Resource* res);
 	void AddLoadTask(Resource* res, void* ptr, TaskCallback callback, bool required);
 	void LoadResource(Resource* res);
+	Resource* LoadResource(Cstring filename, ResourceType type);
 	void LoadResourceInternal(Resource* res);
 	void LoadMesh(Mesh* mesh);
 	void LoadMeshMetadata(Mesh* mesh);
@@ -410,6 +415,5 @@ private:
 	Timer timer;
 	float timer_dt, progress, progress_min, progress_max;
 	ProgressCallback progress_clbk;
-	static ResourceManager manager;
 	static ObjectPool<TaskDetail> task_pool;
 };

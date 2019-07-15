@@ -36,7 +36,7 @@ struct ParticleEmitter
 	void Init();
 	bool Update(float dt);
 	void Save(FileWriter& f);
-	void Load(FileReader& f);
+	void Load(FileReader& f, ResourceManager* res_mgr);
 	float GetAlpha(const Particle &p) const
 	{
 		if(op_alpha == POP_CONST)

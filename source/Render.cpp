@@ -2,11 +2,11 @@
 #include "EngineCore.h"
 #include "Render.h"
 #include "RenderTarget.h"
-#include "StartupOptions.h"
 #include "Engine.h"
 #include "ShaderHandler.h"
 #include "File.h"
 #include "App.h"
+#include "SceneManager.h"
 #include "DirectX.h"
 
 static const D3DFORMAT DISPLAY_FORMAT = D3DFMT_X8R8G8B8;
@@ -14,8 +14,8 @@ static const D3DFORMAT BACKBUFFER_FORMAT = D3DFMT_A8R8G8B8;
 static const D3DFORMAT ZBUFFER_FORMAT = D3DFMT_D24S8;
 
 //=================================================================================================
-Render::Render() : d3d(nullptr), device(nullptr), sprite(nullptr), current_target(nullptr), current_surf(nullptr), vsync(true), lost_device(false),
-res_freed(false), shaders_dir("../shaders")
+Render::Render() : initialized(false), d3d(nullptr), device(nullptr), sprite(nullptr), current_target(nullptr), current_surf(nullptr), vsync(true),
+lost_device(false), res_freed(false), shaders_dir("../shaders"), refresh_hz(0), shader_version(-1), used_adapter(0), multisampling(0), multisampling_quality(0)
 {
 }
 
@@ -39,17 +39,9 @@ Render::~Render()
 }
 
 //=================================================================================================
-void Render::Init(StartupOptions& options)
+void Render::Init(SceneManager* scene_mgr)
 {
-	HRESULT hr;
-
-	// copy settings
-	vsync = options.vsync;
-	used_adapter = options.used_adapter;
-	shader_version = options.shader_version;
-	multisampling = options.multisampling;
-	multisampling_quality = options.multisampling_quality;
-	refresh_hz = options.refresh_hz;
+	this->scene_mgr = scene_mgr;
 
 	// create direct3d object
 	d3d = Direct3DCreate9(D3D_SDK_VERSION);
@@ -61,6 +53,7 @@ void Render::Init(StartupOptions& options)
 	Info("Render: Adapters count: %u", adapters);
 
 	// get adapters info
+	HRESULT hr;
 	D3DADAPTER_IDENTIFIER9 adapter;
 	for(uint i = 0; i < adapters; ++i)
 	{
@@ -77,7 +70,6 @@ void Render::Init(StartupOptions& options)
 	{
 		Warn("Render: Invalid adapter %d, defaulting to 0.", used_adapter);
 		used_adapter = 0;
-		options.used_adapter = 0;
 	}
 
 	// check shaders version
@@ -98,10 +90,7 @@ void Render::Init(StartupOptions& options)
 
 		int version = min(D3DSHADER_VERSION_MAJOR(caps.VertexShaderVersion), D3DSHADER_VERSION_MAJOR(caps.PixelShaderVersion));
 		if(shader_version == -1 || shader_version > version || shader_version < 2)
-		{
 			shader_version = version;
-			options.shader_version = version;
-		}
 
 		Info("Using shader version %d.", shader_version);
 	}
@@ -121,7 +110,7 @@ void Render::Init(StartupOptions& options)
 		throw Format("Render: Unsupported render target D3DFMT_A8R8G8B8 with display %s and depth buffer %s! (%d)",
 		STRING(DISPLAY_FORMAT), STRING(BACKBUFFER_FORMAT), hr);
 
-// check multisampling
+	// check multisampling
 	DWORD levels, levels2;
 	if(SUCCEEDED(d3d->CheckDeviceMultiSampleType(used_adapter, D3DDEVTYPE_HAL, D3DFMT_A8R8G8B8, fullscreen ? FALSE : TRUE,
 		(D3DMULTISAMPLE_TYPE)multisampling, &levels))
@@ -133,7 +122,6 @@ void Render::Init(StartupOptions& options)
 		{
 			Warn("Render: Unavailable multisampling quality, changed to 0.");
 			multisampling_quality = 0;
-			options.multisampling_quality = 0;
 		}
 	}
 	else
@@ -142,8 +130,6 @@ void Render::Init(StartupOptions& options)
 			"Multisampling was turned off.", multisampling);
 		multisampling = 0;
 		multisampling_quality = 0;
-		options.multisampling = 0;
-		options.multisampling_quality = 0;
 	}
 
 	LogMultisampling();
@@ -189,6 +175,7 @@ void Render::Init(StartupOptions& options)
 
 	SetDefaultRenderState();
 
+	initialized = true;
 	Info("Render: Directx device created.");
 }
 
@@ -428,7 +415,7 @@ void Render::WaitReset()
 
 
 //=================================================================================================
-void Render::Draw(bool call_present)
+void Render::Draw()
 {
 	HRESULT hr = device->TestCooperativeLevel();
 	if(hr != D3D_OK)
@@ -453,18 +440,15 @@ void Render::Draw(bool call_present)
 			throw Format("Render: Lost directx device (%d).", hr);
 	}
 
-	Engine::Get().app->OnDraw();
+	scene_mgr->Draw();
 
-	if(call_present)
+	hr = device->Present(nullptr, nullptr, Engine::Get().GetWindowHandle(), nullptr);
+	if(FAILED(hr))
 	{
-		hr = device->Present(nullptr, nullptr, Engine::Get().GetWindowHandle(), nullptr);
-		if(FAILED(hr))
-		{
-			if(hr == D3DERR_DEVICELOST)
-				lost_device = true;
-			else
-				throw Format("Render: Failed to present screen (%d).", hr);
-		}
+		if(hr == D3DERR_DEVICELOST)
+			lost_device = true;
+		else
+			throw Format("Render: Failed to present screen (%d).", hr);
 	}
 }
 
@@ -820,7 +804,8 @@ void Render::SetVsync(bool new_vsync)
 		return;
 
 	vsync = new_vsync;
-	Reset(true);
+	if(initialized)
+		Reset(true);
 }
 
 //=================================================================================================
@@ -828,6 +813,13 @@ int Render::SetMultisampling(int type, int level)
 {
 	if(type == multisampling && (level == -1 || level == multisampling_quality))
 		return 1;
+
+	if(!initialized)
+	{
+		multisampling = type;
+		multisampling_quality = level;
+		return 2;
+	}
 
 	bool fullscreen = Engine::Get().IsFullscreen();
 	DWORD levels, levels2;
