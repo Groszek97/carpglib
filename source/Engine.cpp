@@ -567,6 +567,7 @@ void Engine::Init()
 	sound_mgr->Init();
 	phy_world = CustomCollisionWorld::Init();
 	res_mgr->Init(render->GetDevice(), sound_mgr.get());
+	scene_mgr->Init(render.get());
 	initialized = true;
 }
 

@@ -56,6 +56,7 @@ public:
 	}
 
 	static Logger* global;
+	static void SetLogger(Logger* logger);
 
 protected:
 	static const cstring level_names[4];
@@ -99,6 +100,8 @@ class MultiLogger : public Logger
 public:
 	vector<Logger*> loggers;
 
+	MultiLogger() {}
+	MultiLogger(std::initializer_list<Logger*> const& loggers);
 	~MultiLogger();
 	void Flush() override;
 

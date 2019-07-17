@@ -1,6 +1,9 @@
 #pragma once
 
 //-----------------------------------------------------------------------------
+#include "VertexDeclaration.h"
+
+//-----------------------------------------------------------------------------
 enum TextureAddressMode
 {
 	TEX_ADR_WRAP = 1,
@@ -58,6 +61,7 @@ public:
 	int GetShaderVersion() const { return shader_version; }
 	int GetAdapter() const { return used_adapter; }
 	const string& GetShadersDir() const { return shaders_dir; }
+	IDirect3DVertexDeclaration9* GetVertexDeclaration(VertexDeclarationId id) { return vertex_decl[id]; }
 	void SetAlphaBlend(bool use_alphablend);
 	void SetAlphaTest(bool use_alphatest);
 	void SetNoCulling(bool use_nocull);
@@ -76,6 +80,7 @@ private:
 	void LogMultisampling();
 	void LogAndSelectResolution();
 	void SetDefaultRenderState();
+	void CreateVertexDeclarations();
 	void CreateRenderTargetTexture(RenderTarget* target);
 	void BeforeReset();
 	void AfterReset();
@@ -86,6 +91,7 @@ private:
 	SceneManager* scene_mgr;
 	vector<ShaderHandler*> shaders;
 	vector<RenderTarget*> targets;
+	IDirect3DVertexDeclaration9* vertex_decl[VDI_MAX];
 	RenderTarget* current_target;
 	SURFACE current_surf;
 	string shaders_dir;

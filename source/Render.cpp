@@ -15,19 +15,23 @@ static const D3DFORMAT ZBUFFER_FORMAT = D3DFMT_D24S8;
 
 //=================================================================================================
 Render::Render() : initialized(false), d3d(nullptr), device(nullptr), sprite(nullptr), current_target(nullptr), current_surf(nullptr), vsync(true),
-lost_device(false), res_freed(false), shaders_dir("../shaders"), refresh_hz(0), shader_version(-1), used_adapter(0), multisampling(0), multisampling_quality(0)
+lost_device(false), res_freed(false), shaders_dir("shaders"), refresh_hz(0), shader_version(-1), used_adapter(0), multisampling(0), multisampling_quality(0)
 {
 }
 
 //=================================================================================================
 Render::~Render()
 {
+	for(ShaderHandler* shader : shaders)
+		shader->OnRelease();
 	for(RenderTarget* target : targets)
 	{
 		SafeRelease(target->tex);
 		SafeRelease(target->surf);
 		delete target;
 	}
+	for(int i = 0; i < VDI_MAX; ++i)
+		SafeRelease(vertex_decl[i]);
 	if(device)
 	{
 		device->SetStreamSource(0, nullptr, 0, 0);
@@ -174,6 +178,7 @@ void Render::Init(SceneManager* scene_mgr)
 		throw Format("Render: Failed to create direct3dx sprite (%d).", hr);
 
 	SetDefaultRenderState();
+	CreateVertexDeclarations();
 
 	initialized = true;
 	Info("Render: Directx device created.");
@@ -331,6 +336,78 @@ void Render::SetDefaultRenderState()
 	r_alphablend = false;
 	r_nocull = false;
 	r_nozwrite = false;
+}
+
+//=================================================================================================
+void Render::CreateVertexDeclarations()
+{
+	const D3DVERTEXELEMENT9 Default[] = {
+		{0, 0,  D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_POSITION,		0},
+		{0, 12,	D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_NORMAL,		0},
+		{0, 24, D3DDECLTYPE_FLOAT2,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_TEXCOORD,		0},
+		D3DDECL_END()
+	};
+	V(device->CreateVertexDeclaration(Default, &vertex_decl[VDI_DEFAULT]));
+
+	const D3DVERTEXELEMENT9 Animated[] = {
+		{0,	0,	D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_POSITION,		0},
+		{0,	12,	D3DDECLTYPE_FLOAT1,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_BLENDWEIGHT,	0},
+		{0,	16,	D3DDECLTYPE_UBYTE4,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_BLENDINDICES,	0},
+		{0,	20,	D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_NORMAL,		0},
+		{0,	32,	D3DDECLTYPE_FLOAT2,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_TEXCOORD,		0},
+		D3DDECL_END()
+	};
+	V(device->CreateVertexDeclaration(Animated, &vertex_decl[VDI_ANIMATED]));
+
+	const D3DVERTEXELEMENT9 Tangents[] = {
+		{0, 0,  D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_POSITION,		0},
+		{0, 12,	D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_NORMAL,		0},
+		{0, 24, D3DDECLTYPE_FLOAT2,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_TEXCOORD,		0},
+		{0,	32,	D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_TANGENT,		0},
+		{0,	44,	D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_BINORMAL,		0},
+		D3DDECL_END()
+	};
+	V(device->CreateVertexDeclaration(Tangents, &vertex_decl[VDI_TANGENT]));
+
+	const D3DVERTEXELEMENT9 AnimatedTangents[] = {
+		{0,	0,	D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_POSITION,		0},
+		{0,	12,	D3DDECLTYPE_FLOAT1,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_BLENDWEIGHT,	0},
+		{0,	16,	D3DDECLTYPE_UBYTE4,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_BLENDINDICES,	0},
+		{0,	20,	D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_NORMAL,		0},
+		{0,	32,	D3DDECLTYPE_FLOAT2,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_TEXCOORD,		0},
+		{0,	40,	D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_TANGENT,		0},
+		{0,	52,	D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_BINORMAL,		0},
+		D3DDECL_END()
+	};
+	V(device->CreateVertexDeclaration(AnimatedTangents, &vertex_decl[VDI_ANIMATED_TANGENT]));
+
+	const D3DVERTEXELEMENT9 Tex[] = {
+		{0, 0,  D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_POSITION,		0},
+		{0, 12, D3DDECLTYPE_FLOAT2,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_TEXCOORD,		0},
+		D3DDECL_END()
+	};
+	V(device->CreateVertexDeclaration(Tex, &vertex_decl[VDI_TEX]));
+
+	const D3DVERTEXELEMENT9 Color[] = {
+		{0, 0,  D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_POSITION,		0},
+		{0, 12, D3DDECLTYPE_FLOAT4,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_COLOR,			0},
+		D3DDECL_END()
+	};
+	V(device->CreateVertexDeclaration(Color, &vertex_decl[VDI_COLOR]));
+
+	const D3DVERTEXELEMENT9 Particle[] = {
+		{0, 0,  D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_POSITION,		0},
+		{0, 12, D3DDECLTYPE_FLOAT2,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_TEXCOORD,		0},
+		{0, 20, D3DDECLTYPE_FLOAT4,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_COLOR,			0},
+		D3DDECL_END()
+	};
+	V(device->CreateVertexDeclaration(Particle, &vertex_decl[VDI_PARTICLE]));
+
+	const D3DVERTEXELEMENT9 Pos[] = {
+		{0,	0,	D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_POSITION,		0},
+		D3DDECL_END()
+	};
+	V(device->CreateVertexDeclaration(Pos, &vertex_decl[VDI_POS]));
 }
 
 //=================================================================================================

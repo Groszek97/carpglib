@@ -162,7 +162,9 @@
     <ClCompile Include="source\RenderTarget.cpp" />
     <ClCompile Include="source\Resource.cpp" />
     <ClCompile Include="source\ResourceManager.cpp" />
+    <ClCompile Include="source\Scene.cpp" />
     <ClCompile Include="source\SceneManager.cpp" />
+    <ClCompile Include="source\SceneNode.cpp" />
     <ClCompile Include="source\Scrollbar.cpp" />
     <ClCompile Include="source\Slider.cpp" />
     <ClCompile Include="source\SoundManager.cpp" />

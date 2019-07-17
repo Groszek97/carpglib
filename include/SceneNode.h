@@ -6,6 +6,8 @@ struct SceneNode
 	{
 	}
 
+	Matrix& GetWorldMatrix();
+
 	Mesh* mesh;
 	Vec3 pos, rot, scale;
 	Matrix mat_world;

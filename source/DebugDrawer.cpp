@@ -59,7 +59,7 @@ void DebugDrawer::OnRelease()
 }
 
 //=================================================================================================
-void DebugDrawer::SetCamera(const Camera& camera)
+void DebugDrawer::SetCamera(Camera& camera)
 {
 	mat_view_proj = camera.GetViewProjMatrix();
 }
