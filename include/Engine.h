@@ -2,7 +2,6 @@
 
 //-----------------------------------------------------------------------------
 #include "Timer.h"
-#include "KeyStates.h"
 
 //-----------------------------------------------------------------------------
 class Engine
@@ -38,6 +37,7 @@ public:
 	float GetWindowAspect() const { return float(wnd_size.x) / wnd_size.y; }
 	HWND GetWindowHandle() const { return hwnd; }
 	const Int2& GetWindowSize() const { return wnd_size; }
+	Input* GetInput() { return input.get(); }
 	Render* GetRender() { return render.get(); }
 	ResourceManager* GetResourceManager() { return res_mgr.get(); }
 	SceneManager* GetSceneManager() { return scene_mgr.get(); }
@@ -67,6 +67,7 @@ private:
 	static Engine* engine;
 	App* app;
 	CustomCollisionWorld* phy_world;
+	std::unique_ptr<Input> input;
 	std::unique_ptr<Render> render;
 	std::unique_ptr<ResourceManager> res_mgr;
 	std::unique_ptr<SceneManager> scene_mgr;
