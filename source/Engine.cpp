@@ -5,6 +5,7 @@
 #include "SoundManager.h"
 #include "Physics.h"
 #include "Render.h"
+#include "Input.h"
 #include "SceneManager.h"
 #include "App.h"
 #include "WindowsIncludes.h"
@@ -23,6 +24,7 @@ locked_cursor(true), active(false), activation_point(-1, -1), phy_world(nullptr)
 	engine = this;
 	if(!Logger::global)
 		Logger::global = new Logger;
+	input.reset(new Input);
 	render.reset(new Render);
 	res_mgr.reset(new ResourceManager);
 	scene_mgr.reset(new SceneManager);
@@ -79,7 +81,7 @@ void Engine::ChangeMode()
 
 	// reset cursor
 	replace_cursor = true;
-	Key.UpdateMouseDif(Int2::Zero);
+	input->UpdateMouseDif(Int2::Zero);
 	unlock_point = real_size / 2;
 }
 
@@ -213,10 +215,10 @@ void Engine::DoTick(bool update_game)
 	}
 	else if(!locked_cursor && lock_on_focus)
 		locked_cursor = true;
-	Key.UpdateMouseDif(mouse_dif);
+	input->UpdateMouseDif(mouse_dif);
 
 	// update keyboard shortcuts info
-	Key.UpdateShortcuts();
+	input->UpdateShortcuts();
 
 	// update game
 	if(update_game)
@@ -236,10 +238,10 @@ void Engine::DoTick(bool update_game)
 		}
 		return;
 	}
-	Key.UpdateMouseWheel(0);
+	input->UpdateMouseWheel(0);
 
 	render->Draw();
-	Key.Update();
+	input->Update();
 	sound_mgr->Update(dt);
 }
 
@@ -287,11 +289,11 @@ long Engine::HandleEvent(HWND in_hwnd, uint msg, uint wParam, long lParam)
 	// handle keyboard
 	case WM_SYSKEYDOWN:
 	case WM_KEYDOWN:
-		Key.Process((byte)wParam, true);
+		input->Process((Key)wParam, true);
 		return 0;
 	case WM_SYSKEYUP:
 	case WM_KEYUP:
-		Key.Process((byte)wParam, false);
+		input->Process((Key)wParam, false);
 		return 0;
 
 	// handle mouse
@@ -326,7 +328,7 @@ long Engine::HandleEvent(HWND in_hwnd, uint msg, uint wParam, long lParam)
 				return result;
 			}
 
-			Key.Process(key, down);
+			input->Process((Key)key, down);
 			return result;
 		}
 
@@ -339,7 +341,7 @@ long Engine::HandleEvent(HWND in_hwnd, uint msg, uint wParam, long lParam)
 			byte key;
 			int result = 0;
 			MsgToKey(msg, wParam, key, result);
-			Key.ProcessDoubleClick(key);
+			input->ProcessDoubleClick((Key)key);
 			return result;
 		}
 
@@ -355,7 +357,7 @@ long Engine::HandleEvent(HWND in_hwnd, uint msg, uint wParam, long lParam)
 
 	// handle mouse wheel
 	case WM_MOUSEWHEEL:
-		Key.UpdateMouseWheel(Key.GetMouseWheel() + float(GET_WHEEL_DELTA_WPARAM(wParam)) / WHEEL_DELTA);
+		input->UpdateMouseWheel(input->GetMouseWheel() + float(GET_WHEEL_DELTA_WPARAM(wParam)) / WHEEL_DELTA);
 		return 0;
 	}
 
@@ -464,7 +466,7 @@ void Engine::InitWindow()
 
 	// reset cursor
 	replace_cursor = true;
-	Key.UpdateMouseDif(Int2::Zero);
+	input->UpdateMouseDif(Int2::Zero);
 	unlock_point = real_size / 2;
 
 	Info("Engine: Window created.");
@@ -647,7 +649,7 @@ void Engine::UpdateActivity(bool is_active)
 	else
 	{
 		ShowCursor(true);
-		Key.ReleaseKeys();
+		input->ReleaseKeys();
 	}
 	app->OnFocus(active, activation_point);
 	activation_point = Int2(-1, -1);
