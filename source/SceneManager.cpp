@@ -9,7 +9,7 @@
 #include "Mesh.h"
 #include "DirectX.h"
 
-SceneManager::SceneManager() : active_scene(nullptr)
+SceneManager::SceneManager() : active_scene(nullptr), shader(nullptr)
 {
 }
 
@@ -22,7 +22,7 @@ void SceneManager::Init(Render* render)
 {
 	this->render = render;
 
-	shader.reset(new SuperShader(render));
+	shader = new SuperShader(render);
 }
 
 Scene* SceneManager::CreateDefaultScene()

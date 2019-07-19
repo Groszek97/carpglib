@@ -10,6 +10,15 @@ Scene::~Scene()
 	delete camera;
 }
 
+void Scene::Update(float dt)
+{
+	for(SceneNode* node : nodes)
+	{
+		if(node->mesh_inst)
+			node->mesh_inst->Update(dt);
+	}
+}
+
 void Scene::GetVisibleNodes(vector<SceneNode*>& visible_nodes)
 {
 	for(SceneNode* node : nodes)

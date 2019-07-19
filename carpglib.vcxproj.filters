@@ -2,7 +2,6 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClInclude Include="include\App.h" />
-    <ClInclude Include="include\DirectX.h" />
     <ClInclude Include="include\Engine.h" />
     <ClInclude Include="include\EngineCore.h" />
     <ClInclude Include="include\Algorithm.h">
@@ -260,6 +259,9 @@
     </ClInclude>
     <ClInclude Include="include\Camera.h">
       <Filter>entity</Filter>
+    </ClInclude>
+    <ClInclude Include="include\DirectX.h">
+      <Filter>systems</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

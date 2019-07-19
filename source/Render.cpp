@@ -23,7 +23,10 @@ lost_device(false), res_freed(false), shaders_dir("shaders"), refresh_hz(0), sha
 Render::~Render()
 {
 	for(ShaderHandler* shader : shaders)
+	{
 		shader->OnRelease();
+		delete shader;
+	}
 	for(RenderTarget* target : targets)
 	{
 		SafeRelease(target->tex);

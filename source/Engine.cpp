@@ -528,14 +528,23 @@ bool Engine::Start(App* app)
 	}
 	catch(cstring e)
 	{
-		ShowError(Format("Engine: Failed to initialize CaRpg engine!\n%s", e), Logger::L_FATAL);
+		ShowError(Format("Engine: Failed to initialize engine!\n%s", e), Logger::L_FATAL);
 		Cleanup();
 		return false;
 	}
 
 	// initialize game
-	if(!app->OnInit())
+	try
 	{
+		if(!app->OnInit())
+		{
+			Cleanup();
+			return false;
+		}
+	}
+	catch(cstring e)
+	{
+		ShowError(Format("Engine: Failed to initialize app!\n%s", e), Logger::L_FATAL);
 		Cleanup();
 		return false;
 	}

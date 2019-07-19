@@ -11,7 +11,7 @@ public:
 
 private:
 	Render* render;
-	std::unique_ptr<SuperShader> shader;
+	SuperShader* shader;
 	vector<Scene*> scenes;
 	vector<SceneNode*> nodes;
 	Scene* active_scene;
