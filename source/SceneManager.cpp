@@ -15,6 +15,7 @@ SceneManager::SceneManager() : active_scene(nullptr), shader(nullptr)
 
 SceneManager::~SceneManager()
 {
+	scenes.capacity();
 	DeleteElements(scenes);
 }
 
@@ -23,6 +24,13 @@ void SceneManager::Init(Render* render)
 	this->render = render;
 
 	shader = new SuperShader(render);
+}
+
+void SceneManager::Add(Scene* scene)
+{
+	assert(scene);
+	assert(!IsInside(scenes, scene));
+	scenes.push_back(scene);
 }
 
 Scene* SceneManager::CreateDefaultScene()
@@ -53,8 +61,8 @@ void SceneManager::Draw()
 
 	V(device->BeginScene());
 
-	uint id = shader->GetShaderId(false, false, false, false, false, false, false);
-	ID3DXEffect* e = shader->GetShader(id);
+	uint current_id = 0xFFFFFFFF;
+	ID3DXEffect* e = shader->GetEffect();
 	D3DXHANDLE tech;
 	uint passes;
 	V(e->FindNextValidTechnique(nullptr, &tech));
@@ -68,6 +76,19 @@ void SceneManager::Draw()
 
 	for(SceneNode* node : nodes)
 	{
+		uint id = shader->GetShaderId(node->mesh_inst != nullptr, false, false, false, false, false, false);
+		if(id != current_id)
+		{
+			V(e->EndPass());
+			V(e->End());
+			e = shader->GetShader(id);
+			V(e->FindNextValidTechnique(nullptr, &tech));
+			V(e->SetTechnique(tech));
+			V(e->Begin(&passes, 0));
+			V(e->BeginPass(0));
+			current_id = id;
+		}
+
 		Mesh& mesh = *node->mesh;
 
 		mat_world = node->GetWorldMatrix();
@@ -75,6 +96,11 @@ void SceneManager::Draw()
 
 		V(e->SetMatrix(shader->hMatCombined, (D3DXMATRIX*)&mat_combined));
 		V(e->SetMatrix(shader->hMatWorld, (D3DXMATRIX*)&mat_world));
+		if(node->mesh_inst != nullptr)
+		{
+			node->mesh_inst->SetupBones();
+			V(e->SetMatrixArray(shader->hMatBones, (D3DXMATRIX*)node->mesh_inst->mat_bones.data(), node->mesh_inst->mat_bones.size()));
+		}
 		V(device->SetVertexDeclaration(render->GetVertexDeclaration(mesh.vertex_decl)));
 		V(device->SetStreamSource(0, mesh.vb, 0, mesh.vertex_size));
 		V(device->SetIndices(mesh.ib));
@@ -84,7 +110,7 @@ void SceneManager::Draw()
 			const Mesh::Submesh& sub = mesh.subs[i];
 
 			// texture
-			V(e->SetTexture(shader->hTexDiffuse, mesh.GetTexture(i/*, node->tex_override*/)));
+			V(e->SetTexture(shader->hTexDiffuse, sub.tex->tex));
 			//if(cl_normalmap && IS_SET(current_flags, SceneNode::F_NORMAL_MAP))
 			//	V(e->SetTexture(shader->hTexNormal, sub.tex_normal->tex));
 			//if(cl_specularmap && IS_SET(current_flags, SceneNode::F_SPECULAR_MAP))
@@ -104,4 +130,10 @@ void SceneManager::Draw()
 	V(e->End());
 
 	V(device->EndScene());
+}
+
+void SceneManager::SetActiveScene(Scene* scene)
+{
+	assert(!scene || IsInside(scenes, scene));
+	active_scene = scene;
 }
