@@ -12,22 +12,17 @@
 #include "File.h"
 #include "Engine.h"
 
-using namespace gui;
-
-namespace gui
+class PickFileDialogItem : public GuiElement
 {
-	class PickFileDialogItem : public GuiElement
+public:
+	cstring ToString()
 	{
-	public:
-		cstring ToString()
-		{
-			return filename.c_str();
-		}
+		return filename.c_str();
+	}
 
-		string filename, path;
-		bool is_dir;
-	};
-}
+	string filename, path;
+	bool is_dir;
+};
 
 bool PickFileDialogItemSort(const PickFileDialogItem* i1, const PickFileDialogItem* i2)
 {
@@ -133,7 +128,7 @@ void PickFileDialog::Show(const PickFileDialogOptions& options)
 	if(!self)
 		self = new PickFileDialog(Engine::Get().GetResourceManager());
 	self->Setup(options);
-	GUI.GetOverlay()->ShowDialog(self);
+	gui->GetOverlay()->ShowDialog(self);
 }
 
 void PickFileDialog::Setup(const PickFileDialogOptions& options)
@@ -157,7 +152,7 @@ void PickFileDialog::Draw(ControlDrawData*)
 	Window::Draw();
 
 	if(label_preview->visible)
-		GUI.DrawItem(TextBox::tBox, label_preview->global_pos, label_preview->size, Color::White, 4, 32);
+		gui->DrawItem(TextBox::tBox, label_preview->global_pos, label_preview->size, Color::White, 4, 32);
 }
 
 void PickFileDialog::Event(GuiEvent e)

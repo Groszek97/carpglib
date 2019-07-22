@@ -5,6 +5,7 @@
 #include "SoundManager.h"
 #include "Physics.h"
 #include "Render.h"
+#include "Gui.h"
 #include "Input.h"
 #include "SceneManager.h"
 #include "App.h"
@@ -24,6 +25,7 @@ locked_cursor(true), active(false), activation_point(-1, -1), phy_world(nullptr)
 	engine = this;
 	if(!Logger::global)
 		Logger::global = new Logger;
+	gui.reset(new Gui);
 	input.reset(new Input);
 	render.reset(new Render);
 	res_mgr.reset(new ResourceManager);
@@ -352,7 +354,7 @@ long Engine::HandleEvent(HWND in_hwnd, uint msg, uint wParam, long lParam)
 	// handle text input
 	case WM_CHAR:
 	case WM_SYSCHAR:
-		app->OnChar((char)wParam);
+		gui->OnChar((char)wParam);
 		return 0;
 
 	// handle mouse wheel
@@ -579,6 +581,7 @@ void Engine::Init()
 	phy_world = CustomCollisionWorld::Init();
 	res_mgr->Init(render->GetDevice(), sound_mgr.get());
 	scene_mgr->Init(render.get());
+	gui->Init(render->GetDevice(), render->GetSprite(), input.get());
 	initialized = true;
 }
 

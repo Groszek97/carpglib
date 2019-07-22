@@ -5,7 +5,9 @@
 #include "ResourceManager.h"
 #include "Label.h"
 
-using namespace gui;
+Layout::Layout(Gui* gui) : gui(gui)
+{
+}
 
 Layout::~Layout()
 {
@@ -14,8 +16,8 @@ Layout::~Layout()
 
 void Layout::LoadDefault(ResourceManager* res_mgr)
 {
-	Font* def_font = GUI.default_font;
-	Font* font_big = GUI.fBig;
+	Font* def_font = gui->default_font;
+	Font* font_big = gui->fBig;
 	TEX t;
 
 	panel.background = AreaLayout(Color(245, 246, 247), Color(0xA0, 0xA0, 0xA0));
@@ -118,7 +120,7 @@ Box2d AreaLayout::CalculateRegion(const Int2& pos, const Int2& region)
 
 void AreaLayout::SetFromArea(const Rect* area)
 {
-	Int2 tex_size = gui::GetSize(tex);
+	Int2 tex_size = Control::GetSize(tex);
 	if(area)
 	{
 		size = area->Size();
