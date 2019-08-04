@@ -44,6 +44,8 @@ void Mesh::Load(StreamReader& stream, IDirect3DDevice9* device, ResourceManager*
 {
 	assert(device);
 
+	ResourceManager& res_mgr = ResourceManager::Get();
+
 	LoadHeader(stream);
 	SetVertexSizeDecl();
 

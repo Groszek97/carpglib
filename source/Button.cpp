@@ -3,9 +3,6 @@
 #include "Button.h"
 #include "Input.h"
 
-//-----------------------------------------------------------------------------
-TEX Button::tex[4];
-
 //=================================================================================================
 Button::Button() : state(NONE), img(nullptr), hold(false), force_img_size(0, 0), custom(nullptr)
 {
@@ -20,7 +17,7 @@ void Button::Draw(ControlDrawData*)
 
 	if(!custom)
 	{
-		gui->DrawItem(tex[real_state], global_pos, size, Color::White, 16);
+		gui->DrawArea(Box2d::Create(global_pos, size), layout->tex[real_state]);
 
 		Rect r = {
 			global_pos.x + 4,
@@ -44,17 +41,17 @@ void Button::Draw(ControlDrawData*)
 			Matrix mat;
 			Int2 required_size = force_img_size, img_size;
 			Vec2 scale;
-			Control::ResizeImage(img, required_size, img_size, scale);
+			img->ResizeImage(required_size, img_size, scale);
 			mat = Matrix::Transform2D(&Vec2(float(img_size.x) / 2, float(img_size.y) / 2), 0.f, &scale, nullptr, 0.f,
 				&Vec2((float)r.Left(), float(r.Top() + (required_size.y - img_size.y) / 2)));
 			gui->DrawSprite2(img, mat, nullptr, &r, Color::White);
 			r.Left() += img_size.x;
 		}
 
-		gui->DrawText(gui->default_font, text, DTF_CENTER | DTF_VCENTER, Color::Black, r, &r);
+		gui->DrawText(layout->font, text, DTF_CENTER | DTF_VCENTER, Color::Black, r, &r);
 	}
 	else
-		gui->DrawItem(custom->tex[real_state], global_pos, size, Color::White, 16);
+		gui->DrawArea(Box2d::Create(global_pos, size), custom->tex[real_state]);
 }
 
 //=================================================================================================
@@ -65,7 +62,7 @@ void Button::Update(float dt)
 
 	if(input->Focus() && mouse_focus && IsInside(gui->cursor_pos))
 	{
-		gui->cursor_mode = CURSOR_HAND;
+		gui->cursor_mode = CURSOR_HOVER;
 		if(state == DOWN)
 		{
 			bool apply = false;

@@ -3623,6 +3623,11 @@ inline Matrix Matrix::Transform(const Vec3& pos, const Vec3& rot, const Vec3& sc
 	return result;
 }
 
+inline Matrix Matrix::Transform(const Vec3& pos, const Vec3& rot, float scale)
+{
+	return Transform(pos, rot, Vec3(scale, scale, scale));
+}
+
 inline Matrix Matrix::Transform2D(const Vec2* scaling_center, float scaling_rotation, const Vec2* scaling, const Vec2* rotation_center, float rotation, const Vec2* translation)
 {
 	XMVECTOR m_scaling_center = scaling_center ? *scaling_center : Vec2(0, 0),

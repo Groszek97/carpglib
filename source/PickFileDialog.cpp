@@ -97,10 +97,9 @@ PickFileDialog::PickFileDialog(ResourceManager* res_mgr)
 	label_preview = new Label("Preview not available", false);
 	label_preview->SetSize(Int2(240 - 6, 480 - 100));
 	label_preview->SetPosition(Int2(404, 34));
-	label_preview->SetAlign(DTF_CENTER | DTF_VCENTER);
 	Add(label_preview);
 
-	tex_dir = res_mgr->LoadRaw<Texture>("dir.png");
+	tex_dir = ResourceManager::Get().Load<Texture>("dir.png");
 
 	preview_types["txt"] = PreviewType::Text;
 	preview_types["bmp"] = PreviewType::Image;
@@ -152,7 +151,7 @@ void PickFileDialog::Draw(ControlDrawData*)
 	Window::Draw();
 
 	if(label_preview->visible)
-		gui->DrawItem(TextBox::tBox, label_preview->global_pos, label_preview->size, Color::White, 4, 32);
+		gui->DrawArea(Box2d::Create(label_preview->global_pos, label_preview->size), layout->box);
 }
 
 void PickFileDialog::Event(GuiEvent e)
@@ -509,7 +508,7 @@ void PickFileDialog::SetupPreview()
 	case PreviewType::Image:
 		{
 			draw_box->visible = true;
-			draw_box->SetTexture(res_mgr->LoadRaw<Texture>(item->path));
+			draw_box->SetTexture(ResourceManager::Get().LoadInstant<Texture>(item->path));
 		}
 		break;
 	}

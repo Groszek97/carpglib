@@ -3,7 +3,6 @@
 //-----------------------------------------------------------------------------
 #include "ShaderHandler.h"
 #include "Font.h"
-#include "Layout.h"
 #include "VertexDeclaration.h"
 
 //-----------------------------------------------------------------------------
@@ -22,11 +21,6 @@ enum GuiEvent
 	GuiEvent_LostMouseFocus, // control lost mouse focus
 	GuiEvent_Custom
 };
-
-//-----------------------------------------------------------------------------
-class Control;
-class Container;
-class DialogBox;
 
 //-----------------------------------------------------------------------------
 struct Hitbox
@@ -56,8 +50,9 @@ struct HitboxContext
 enum CursorMode
 {
 	CURSOR_NORMAL,
-	CURSOR_HAND,
-	CURSOR_TEXT
+	CURSOR_HOVER,
+	CURSOR_TEXT,
+	CURSOR_MAX
 };
 
 //-----------------------------------------------------------------------------
@@ -93,7 +88,7 @@ struct DialogInfo
 	DialogEvent event;
 	DialogOrder order;
 	cstring* custom_names, tick_text;
-	TEX img;
+	Texture* img;
 	bool pause, have_tick, ticked, auto_wrap;
 };
 
@@ -116,28 +111,15 @@ struct TextLine
 };
 
 //-----------------------------------------------------------------------------
+namespace layout
+{
+	struct Gui;
+}
+
+//-----------------------------------------------------------------------------
 // GUI
 class Gui : public ShaderHandler
 {
-	struct Notification
-	{
-		enum State
-		{
-			Showing,
-			Shown,
-			Hiding
-		};
-
-		string text;
-		TEX icon;
-		float t, t2;
-		State state;
-	};
-
-	static const int MAX_ACTIVE_NOTIFICATIONS = 3;
-	Notification* active_notifications[MAX_ACTIVE_NOTIFICATIONS];
-	vector<Notification*> pending_notifications;
-
 public:
 	Gui();
 	~Gui();
@@ -146,7 +128,7 @@ public:
 	void OnReset() override;
 	void OnReload() override;
 	void OnRelease() override;
-	void InitLayout();
+	bool IsManual() override { return true; }
 	void SetText(cstring ok, cstring yes, cstring no, cstring cancel);
 	void Draw(bool draw_layers, bool draw_dialogs);
 	bool AddFont(cstring filename);
@@ -161,12 +143,12 @@ public:
 		/$b - przerwa w tekœcie
 		/$n - nie przerywaj tekstu a¿ do nastêpnego takiego symbolu (np $njakiœ tekst$n - ten tekst nigdy nie zostanie rozdzielony pomiêdzy dwie linijki)
 	*/
-	bool DrawText(Font* font, StringOrCstring str, uint flags, Color color, const Rect& rect, const Rect* clipping = nullptr,
+	bool DrawText(Font* font, Cstring str, uint flags, Color color, const Rect& rect, const Rect* clipping = nullptr,
 		vector<Hitbox>* hitboxes = nullptr, int* hitbox_counter = nullptr, const vector<TextLine>* lines = nullptr);
 	void Add(Control* ctrl);
-	void DrawItem(TEX t, const Int2& item_pos, const Int2& item_size, Color color, int corner = 16, int size = 64, const Box2d* clip_rect = nullptr);
+	void DrawItem(Texture* t, const Int2& item_pos, const Int2& item_size, Color color, int corner = 16, int size = 64, const Box2d* clip_rect = nullptr);
 	void Update(float dt, float mouse_speed);
-	void DrawSprite(TEX t, const Int2& pos, Color color = Color::White, const Rect* clipping = nullptr);
+	void DrawSprite(Texture* t, const Int2& pos, Color color = Color::White, const Rect* clipping = nullptr);
 	void OnClean();
 	void OnChar(char c);
 	DialogBox* ShowDialog(const DialogInfo& info);
@@ -175,46 +157,44 @@ public:
 	void CloseDialogInternal(DialogBox* d);
 	bool HaveTopDialog(cstring name) const;
 	bool HaveDialog() const;
-	void DrawSpriteFull(TEX t, Color color);
+	void DrawSpriteFull(Texture* t, Color color);
 	void AddOnCharHandler(OnCharHandler* h) { on_char.push_back(h); }
 	void RemoveOnCharHandler(OnCharHandler* h) { RemoveElement(on_char, h); }
 	void SimpleDialog(cstring text, Control* parent, cstring name = "simple");
-	void DrawSpriteRect(TEX t, const Rect& rect, Color color = Color::White);
+	void DrawSpriteRect(Texture* t, const Rect& rect, Color color = Color::White);
 	bool HaveDialog(cstring name);
 	bool HaveDialog(DialogBox* dialog);
 	IDirect3DDevice9* GetDevice() { return device; }
 	bool AnythingVisible() const;
 	void OnResize();
-	void DrawSpriteRectPart(TEX t, const Rect& rect, const Rect& part, Color color = Color::White);
-	void DrawSpriteTransform(TEX t, const Matrix& mat, Color color = Color::White);
+	void DrawSpriteRectPart(Texture* t, const Rect& rect, const Rect& part, Color color = Color::White);
+	void DrawSpriteTransform(Texture* t, const Matrix& mat, Color color = Color::White);
 	void DrawLine(const Vec2* lines, uint count, Color color = Color::Black, bool strip = true);
 	void LineBegin();
 	void LineEnd();
 	bool NeedCursor();
-	bool DrawText3D(Font* font, StringOrCstring text, uint flags, Color color, const Vec3& pos, Rect* text_rect = nullptr);
+	bool DrawText3D(Font* font, Cstring text, uint flags, Color color, const Vec3& pos, Rect* text_rect = nullptr);
 	bool To2dPoint(const Vec3& pos, Int2& pt);
 	static bool Intersect(vector<Hitbox>& hitboxes, const Int2& pt, int* index, int* index2 = nullptr);
-	void DrawSpriteTransformPart(TEX t, const Matrix& mat, const Rect& part, Color color = Color::White);
+	void DrawSpriteTransformPart(Texture* t, const Matrix& mat, const Rect& part, Color color = Color::White);
 	void CloseDialogs();
 	bool HavePauseDialog() const;
 	DialogBox* GetDialog(cstring name);
-	void DrawSprite2(TEX t, const Matrix& mat, const Rect* part = nullptr, const Rect* clipping = nullptr, Color color = Color::White);
-	void AddNotification(cstring text, TEX icon, float timer);
+	void DrawSprite2(Texture* t, const Matrix& mat, const Rect* part = nullptr, const Rect* clipping = nullptr, Color color = Color::White);
 	void DrawArea(Color color, const Int2& pos, const Int2& size, const Box2d* clip_rect = nullptr);
 	void DrawArea(Color color, const Rect& rect, const Box2d* clip_rect = nullptr)
 	{
 		DrawArea(color, rect.LeftTop(), rect.Size(), clip_rect);
 	}
-	// 2.0
-	void SetLayout(Layout* layout) { assert(layout); this->layout = layout; }
-	Layout* GetLayout() const { return layout; }
+	void SetLayout(Layout* layout);
+	Layout* GetLayout() const { return master_layout; }
 	void DrawArea(const Box2d& rect, const AreaLayout& area_layout, const Box2d* clip_rect = nullptr);
 	void SetOverlay(Overlay* overlay) { this->overlay = overlay; }
 	Overlay* GetOverlay() const { return overlay; }
 	bool MouseMoved() const { return cursor_pos != prev_cursor_pos; }
 	void SetClipboard(cstring text);
 	cstring GetClipboard();
-	Rect GetSpriteRect(TEX t, const Matrix& mat, const Rect* part = nullptr, const Rect* clipping = nullptr);
+	Rect GetSpriteRect(Texture* t, const Matrix& mat, const Rect* part = nullptr, const Rect* clipping = nullptr);
 	void UseGrayscale(bool grayscale);
 	struct DrawTextOptions
 	{
@@ -232,9 +212,9 @@ public:
 		uint lines_end;
 		uint str_length;
 
-		DrawTextOptions(Font* font, StringOrCstring str) : font(font), str(str.c_str()), rect(Rect::Zero), flags(DTF_LEFT), color(Color::Black),
+		DrawTextOptions(Font* font, Cstring str) : font(font), str(str), rect(Rect::Zero), flags(DTF_LEFT), color(Color::Black),
 			clipping(nullptr), hitboxes(nullptr), hitbox_counter(nullptr), lines(nullptr), scale(Vec2::One), lines_start(0), lines_end(UINT_MAX),
-			str_length(str.length())
+			str_length(strlen(str))
 		{
 		}
 	};
@@ -242,11 +222,8 @@ public:
 
 	Matrix mViewProj;
 	Int2 cursor_pos, prev_cursor_pos, wnd_size;
-	Font* default_font, *fBig, *fSmall;
-	TEX tCursor[3];
 	CursorMode cursor_mode;
 	cstring txOk, txYes, txNo, txCancel;
-	static TEX tBox, tBox2, tPix, tDown;
 	Control* focused_ctrl;
 	float mouse_wheel;
 
@@ -262,8 +239,6 @@ private:
 	void SkipLine(cstring text, uint line_begin, uint line_end, HitboxContext* hc);
 	bool CreateFontInternal(Font* font, ID3DXFont* dx_font, int tex_size, int outline, int max_outline);
 	int TryCreateFontInternal(Font* font, ID3DXFont* dx_font, int tex_size, int outline, int max_outline);
-	void UpdateNotifications(float dt);
-	void DrawNotifications();
 	void AddRect(const Vec2& left_top, const Vec2& right_bottom, const Vec4& color);
 
 	IDirect3DDevice9* device;
@@ -271,7 +246,6 @@ private:
 	TEX tFontTarget;
 	TEX tSet, tCurrent, tCurrent2, tPixel;
 	int max_tex_size;
-	vector<Font*> fonts;
 	vector<DialogBox*> created_dialogs;
 	ID3DXEffect* effect;
 	D3DXHANDLE techGui, techGui2, techGuiGrayscale;
@@ -285,7 +259,8 @@ private:
 	vector<OnCharHandler*> on_char;
 	bool vb2_locked, grayscale;
 	float outline_alpha;
-	Layout* layout;
+	Layout* master_layout;
+	layout::Gui* layout;
 	Overlay* overlay;
 	IDirect3DVertexDeclaration9* vertex_decl;
 };

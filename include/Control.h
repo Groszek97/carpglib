@@ -2,6 +2,7 @@
 
 //-----------------------------------------------------------------------------
 #include "Gui.h"
+#include "Texture.h"
 
 //-----------------------------------------------------------------------------
 struct ControlDrawData
@@ -32,18 +33,16 @@ public:
 	};
 
 	Control(bool is_new = false) : pos(0, 0), global_pos(0, 0), size(0, 0), parent(nullptr), visible(true), focus(false), mouse_focus(false), focusable(false),
-		initialized(false), layout(gui->GetLayout()), is_new(is_new), disabled(false), flags(0) {}
+		initialized(false), is_new(is_new), disabled(false), flags(0) {}
 	virtual ~Control() {}
 
 	static Gui* gui;
 	static Input* input;
-	static TEX tDialog;
 	Int2 pos, global_pos, size;
 	Control* parent;
 	bool visible, focus,
 		mouse_focus, // in Update it is set to true if Control can gain mouse focus, setting it to false mean that Control have taken focus
 		focusable;
-	Layout* layout;
 
 protected:
 	bool initialized, is_new, disabled;
@@ -118,7 +117,6 @@ public:
 	void Disable() { SetDisabled(true); }
 	void Enable() { SetDisabled(false); }
 	const Int2& GetSize() const { return size; }
-	static Int2 GetSize(TEX img);
 	void Initialize();
 	void SetSize(const Int2& size);
 	void SetPosition(const Int2& pos);
@@ -126,7 +124,6 @@ public:
 	void TakeFocus(bool pressed = false);
 	void SetFocus();
 	void UpdateControl(Control* ctrl, float dt);
-	void ResizeImage(TEX t, Int2& new_size, Int2& img_size, Vec2& scale);
 
 	bool IsOnCharHandler() const { return IS_SET(flags, F_ON_CHAR_HANDLER); }
 	bool IsDocked() const { return IS_SET(flags, F_DOCKED); }

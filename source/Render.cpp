@@ -15,8 +15,10 @@ static const D3DFORMAT ZBUFFER_FORMAT = D3DFMT_D24S8;
 
 //=================================================================================================
 Render::Render() : initialized(false), d3d(nullptr), device(nullptr), sprite(nullptr), current_target(nullptr), current_surf(nullptr), vsync(true),
-lost_device(false), res_freed(false), shaders_dir("shaders"), refresh_hz(0), shader_version(-1), used_adapter(0), multisampling(0), multisampling_quality(0)
+lost_device(false), res_freed(false), shaders_dir("../shaders"), refresh_hz(0), shader_version(-1), used_adapter(0), multisampling(0), multisampling_quality(0)
 {
+	for(int i = 0; i < VDI_MAX; ++i)
+		vertex_decl[i] = nullptr;
 }
 
 //=================================================================================================
@@ -24,12 +26,14 @@ Render::~Render()
 {
 	for(ShaderHandler* shader : shaders)
 	{
-		shader->OnRelease();
-		delete shader;
+		if(!shader->IsManual())
+		{
+			shader->OnRelease();
+			delete shader;
+		}
 	}
 	for(RenderTarget* target : targets)
 	{
-		SafeRelease(target->tex);
 		SafeRelease(target->surf);
 		delete target;
 	}
@@ -544,7 +548,7 @@ void Render::BeforeReset()
 		shader->OnReset();
 	for(RenderTarget* target : targets)
 	{
-		SafeRelease(target->tex);
+		SafeRelease(target->tex.tex);
 		SafeRelease(target->surf);
 	}
 }
@@ -806,20 +810,21 @@ RenderTarget* Render::CreateRenderTarget(const Int2& size)
 //=================================================================================================
 void Render::CreateRenderTargetTexture(RenderTarget* target)
 {
-	V(device->CreateTexture(target->size.x, target->size.y, 0, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &target->tex, nullptr));
+	V(device->CreateTexture(target->size.x, target->size.y, 0, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &target->tex.tex, nullptr));
 	D3DMULTISAMPLE_TYPE type = (D3DMULTISAMPLE_TYPE)multisampling;
 	if(type != D3DMULTISAMPLE_NONE)
 		V(device->CreateRenderTarget(target->size.x, target->size.y, D3DFMT_A8R8G8B8, type, multisampling_quality, FALSE, &target->surf, nullptr));
 	else
 		target->surf = nullptr;
+	target->tex.state = ResourceState::Loaded;
 }
 
 //=================================================================================================
-TEX Render::CopyToTexture(RenderTarget* target)
+Texture* Render::CopyToTexture(RenderTarget* target)
 {
 	assert(target);
 	D3DSURFACE_DESC desc;
-	V(target->tex->GetLevelDesc(0, &desc));
+	V(target->tex.tex->GetLevelDesc(0, &desc));
 	TEX tex;
 	V(device->CreateTexture(desc.Width, desc.Height, 0, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &tex, nullptr));
 	SURFACE surf;
@@ -828,7 +833,12 @@ TEX Render::CopyToTexture(RenderTarget* target)
 	target->FreeSurface();
 	surf->Release();
 	if(SUCCEEDED(hr))
-		return tex;
+	{
+		Texture* t = new Texture;
+		t->tex = tex;
+		t->state = ResourceState::Loaded;
+		return t;
+	}
 	else
 	{
 		tex->Release();
@@ -965,7 +975,7 @@ void Render::SetTarget(RenderTarget* target)
 			V(device->SetRenderTarget(0, target->surf));
 		else
 		{
-			V(target->tex->GetSurfaceLevel(0, &current_surf));
+			V(target->tex.tex->GetSurfaceLevel(0, &current_surf));
 			V(device->SetRenderTarget(0, current_surf));
 		}
 
@@ -986,7 +996,7 @@ void Render::SetTarget(RenderTarget* target)
 			// copy to surface if using multisampling
 			if(current_target->surf)
 			{
-				V(current_target->tex->GetSurfaceLevel(0, &current_surf));
+				V(current_target->tex.tex->GetSurfaceLevel(0, &current_surf));
 				V(device->StretchRect(current_target->surf, nullptr, current_surf, nullptr, D3DTEXF_NONE));
 			}
 			current_surf->Release();

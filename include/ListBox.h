@@ -3,9 +3,22 @@
 //-----------------------------------------------------------------------------
 #include "Scrollbar.h"
 #include "GuiElement.h"
+#include "Layout.h"
 
 //-----------------------------------------------------------------------------
-class ListBox : public Control, public OnCharHandler
+namespace layout
+{
+	struct ListBox : public Control
+	{
+		AreaLayout box;
+		AreaLayout selection;
+		Texture* down_arrow;
+		Font* font;
+	};
+}
+
+//-----------------------------------------------------------------------------
+class ListBox : public Control, public OnCharHandler, public LayoutControl<layout::ListBox>
 {
 public:
 	enum Action
@@ -28,7 +41,7 @@ public:
 	void OnChar(char c) override;
 
 	void Add(GuiElement* e);
-	void Add(cstring text, int value = 0, TEX tex = nullptr) { Add(new DefaultGuiElement(text, value, tex)); }
+	void Add(cstring text, int value = 0, Texture* tex = nullptr) { Add(new DefaultGuiElement(text, value, tex)); }
 	void Sort();
 	void ScrollTo(int index, bool center = false);
 	GuiElement* Find(int value);

@@ -6,13 +6,14 @@
 //-----------------------------------------------------------------------------
 struct Texture : public Resource
 {
-	static const ResourceType Type = ResourceType::Texture;
-	typedef TEX RawType;
-	static TEX GetRaw(Texture* tex) { return tex->tex; }
+	static constexpr ResourceType Type = ResourceType::Texture;
 
 	TEX tex;
 
 	Texture() : tex(nullptr) {}
+	~Texture();
+	void ResizeImage(Int2& new_size, Int2& img_size, Vec2& scale);
+	Int2 GetSize() const { return GetSize(tex); }
 	static Int2 GetSize(TEX tex);
 };
 

@@ -525,7 +525,6 @@ struct Int2
 
 	// Constants
 	static const Int2 Zero;
-	static const Int2 MaxValue;
 };
 
 //-----------------------------------------------------------------------------
@@ -1246,6 +1245,7 @@ struct Matrix : XMFLOAT4X4
 	static void Transform(const Matrix& M, const Quat& rotation, Matrix& result);
 	static Matrix Transform(const Matrix& M, const Quat& rotation);
 	static Matrix Transform(const Vec3& pos, const Vec3& rot, const Vec3& scale);
+	static Matrix Transform(const Vec3& pos, const Vec3& rot, float scale);
 	static Matrix Transform2D(const Vec2* scaling_center, float scaling_rotation, const Vec2* scaling, const Vec2* rotation_center, float rotation, const Vec2* translation);
 	static Matrix Translation(const Vec3& position);
 	static Matrix Translation(float x, float y, float z);

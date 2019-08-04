@@ -5,7 +5,6 @@
 
 // Engine types
 struct Camera;
-struct Font;
 struct MeshInstance;
 struct ParticleEmitter;
 struct SceneNode;
@@ -31,27 +30,37 @@ class SuperShader;
 class TerrainShader;
 
 // Resource types
+struct Font;
 struct Mesh;
+struct Music;
 struct Resource;
 struct Sound;
 struct Texture;
 struct VertexData;
+typedef Font* FontPtr;
 typedef Mesh* MeshPtr;
+typedef Music* MusicPtr;
 typedef Sound* SoundPtr;
 typedef Texture* TexturePtr;
 typedef VertexData* VertexDataPtr;
 
 // Gui types
+struct AreaLayout;
 class Button;
 class CheckBox;
+class Container;
+class Control;
 class DialogBox;
 class DrawBox;
 class GuiDialog;
 class GuiElement;
 class Label;
+class Layout;
+class ListBox;
 class MenuBar;
 class MenuList;
 class MenuStrip;
+class Notifications;
 class Overlay;
 class Panel;
 class PickItemDialog;

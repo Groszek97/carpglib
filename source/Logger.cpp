@@ -21,10 +21,13 @@ void Logger::Log(Level level, cstring msg)
 	Log(level, msg, tm);
 }
 
-void Logger::SetLogger(Logger* logger)
+void Logger::SetInstance(Logger* logger)
 {
 	assert(logger);
-	delete global;
+	if(logger == global)
+		return;
+	if(global)
+		delete global;
 	global = logger;
 }
 

@@ -23,8 +23,8 @@ Engine::Engine() : app(nullptr), initialized(false), shutdown(false), timer(fals
 locked_cursor(true), active(false), activation_point(-1, -1), phy_world(nullptr), title("Window"), force_pos(-1, -1), force_size(-1, -1), hidden_window(false)
 {
 	engine = this;
-	if(!Logger::global)
-		Logger::global = new Logger;
+	if(!Logger::GetInstance())
+		Logger::SetInstance(new Logger);
 	gui.reset(new Gui);
 	input.reset(new Input);
 	render.reset(new Render);
@@ -36,7 +36,7 @@ locked_cursor(true), active(false), activation_point(-1, -1), phy_world(nullptr)
 //=================================================================================================
 Engine::~Engine()
 {
-	delete Logger::global;
+	delete Logger::GetInstance();
 }
 
 //=================================================================================================
@@ -514,8 +514,9 @@ void Engine::ShowError(cstring msg, Logger::Level level)
 
 	ShowWindow(hwnd, SW_HIDE);
 	ShowCursor(true);
-	Logger::global->Log(level, msg);
-	Logger::global->Flush();
+	Logger* logger = Logger::GetInstance();
+	logger->Log(level, msg);
+	logger->Flush();
 	MessageBox(nullptr, msg, nullptr, MB_OK | MB_ICONERROR | MB_APPLMODAL);
 }
 
