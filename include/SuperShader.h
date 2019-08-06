@@ -36,12 +36,12 @@ public:
 	ID3DXEffect* GetEffect() const { return shaders.front().e; }
 
 	// new
-	void Prepare();
+	/*void Prepare();
 	void SetFog(const Vec2& range, Color color);
 	void SetFogDisabled() { use_fog = false; }
 	void Begin();
 	void Draw(SceneNode* node);
-	void End();
+	void End();*/
 
 	D3DXHANDLE hMatCombined, hMatWorld, hMatBones, hTint, hAmbientColor, hFogColor, hFogParams, hLightDir, hLightColor, hLights, hSpecularColor,
 		hSpecularIntensity, hSpecularHardness, hCameraPos, hTexDiffuse, hTexNormal, hTexSpecular;
@@ -53,6 +53,6 @@ private:
 	ID3DXEffectPool* pool;
 	ID3DXEffect* effect;
 	vector<Shader> shaders;
-	uint current_id;
-	bool use_fog;
+	//uint current_id;
+	//bool use_fog;
 };
