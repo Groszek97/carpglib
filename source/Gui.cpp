@@ -23,7 +23,7 @@ master_layout(nullptr), layout(nullptr), overlay(nullptr), grayscale(false), ver
 //=================================================================================================
 Gui::~Gui()
 {
-	OnReset();
+	OnRelease();
 
 	delete layer;
 	delete dialog_layer;

@@ -13,6 +13,8 @@ public:
 	void SetActiveScene(Scene* scene);
 	void SetCamera(Camera* camera) { this->camera = camera; }
 
+	bool use_fog;
+
 private:
 	SuperShader* shader;
 	vector<Scene*> scenes;

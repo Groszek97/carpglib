@@ -4,6 +4,10 @@
 #include "SceneNode.h"
 #include "Camera.h"
 
+Scene::Scene() : clear_color(Color::Black), use_fog(true), fog_range(20.f, 40.f), fog_color(Color::Black)
+{
+}
+
 Scene::~Scene()
 {
 	DeleteElements(nodes);
