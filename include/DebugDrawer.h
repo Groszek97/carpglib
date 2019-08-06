@@ -10,7 +10,7 @@ class DebugDrawer : public ShaderHandler
 public:
 	typedef delegate<void(DebugDrawer*)> Handler;
 
-	DebugDrawer(Render* render);
+	DebugDrawer();
 	~DebugDrawer();
 	void OnInit() override;
 	void OnReset() override;

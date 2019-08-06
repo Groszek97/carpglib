@@ -40,7 +40,7 @@ bool PickFileDialogItemSort(const PickFileDialogItem* i1, const PickFileDialogIt
 
 PickFileDialog* PickFileDialog::self;
 
-PickFileDialog::PickFileDialog(ResourceManager* res_mgr)
+PickFileDialog::PickFileDialog()
 {
 	SetAreaSize(Int2(640, 480));
 
@@ -99,7 +99,7 @@ PickFileDialog::PickFileDialog(ResourceManager* res_mgr)
 	label_preview->SetPosition(Int2(404, 34));
 	Add(label_preview);
 
-	tex_dir = ResourceManager::Get().Load<Texture>("dir.png");
+	tex_dir = app::res_mgr->Load<Texture>("dir.png");
 
 	preview_types["txt"] = PreviewType::Text;
 	preview_types["bmp"] = PreviewType::Image;
@@ -125,7 +125,7 @@ void PickFileDialog::Destroy()
 void PickFileDialog::Show(const PickFileDialogOptions& options)
 {
 	if(!self)
-		self = new PickFileDialog(Engine::Get().GetResourceManager());
+		self = new PickFileDialog;
 	self->Setup(options);
 	gui->GetOverlay()->ShowDialog(self);
 }
@@ -508,7 +508,7 @@ void PickFileDialog::SetupPreview()
 	case PreviewType::Image:
 		{
 			draw_box->visible = true;
-			draw_box->SetTexture(ResourceManager::Get().LoadInstant<Texture>(item->path));
+			draw_box->SetTexture(app::res_mgr->LoadInstant<Texture>(item->path));
 		}
 		break;
 	}

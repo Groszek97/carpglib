@@ -56,7 +56,7 @@ private:
 		vector<string> exts;
 	};
 
-	PickFileDialog(ResourceManager* res_mgr);
+	PickFileDialog();
 	~PickFileDialog();
 
 	void Setup(const PickFileDialogOptions& options);
@@ -70,7 +70,6 @@ private:
 	void SetupPreview();
 
 	static PickFileDialog* self;
-	ResourceManager* res_mgr;
 	ListBox* list_box, *list_extensions;
 	TextBox* tb_path, *tb_filename, *tb_preview;
 	Button* bt_select, *bt_cancel;

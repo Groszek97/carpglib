@@ -7,7 +7,7 @@
 class GrassShader : public ShaderHandler
 {
 public:
-	GrassShader(Render* render);
+	GrassShader();
 	~GrassShader();
 	void OnInit() override;
 	void OnReset() override;

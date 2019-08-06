@@ -8,7 +8,7 @@
 #include "DirectX.h"
 
 //=================================================================================================
-TerrainShader::TerrainShader(Render* render) : render(render), device(render->GetDevice()), vertex_decl(nullptr), effect(nullptr)
+TerrainShader::TerrainShader() : render(app::render), device(app::render->GetDevice()), vertex_decl(nullptr), effect(nullptr)
 {
 	const D3DVERTEXELEMENT9 decl[] = {
 		{0, 0,  D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_POSITION,		0},

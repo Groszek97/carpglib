@@ -7,7 +7,7 @@
 #include "DirectX.h"
 
 //=================================================================================================
-GrassShader::GrassShader(Render* render) : render(render), device(render->GetDevice()), vertex_decl(nullptr), effect(nullptr), vb(nullptr), vb_size(0)
+GrassShader::GrassShader() : render(app::render), device(app::render->GetDevice()), vertex_decl(nullptr), effect(nullptr), vb(nullptr), vb_size(0)
 {
 	const D3DVERTEXELEMENT9 decl[] = {
 		{0, 0,  D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_POSITION,	0},

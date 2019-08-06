@@ -14,8 +14,6 @@ public:
 	Engine();
 	~Engine();
 
-	static Engine& Get() { return *engine; }
-
 	bool ChangeMode(bool fullscreen);
 	bool ChangeMode(const Int2& size, bool fullscreen, int hz = 0);
 	void DoPseudotick(bool msg_only = false);
@@ -37,12 +35,6 @@ public:
 	float GetWindowAspect() const { return float(wnd_size.x) / wnd_size.y; }
 	HWND GetWindowHandle() const { return hwnd; }
 	const Int2& GetWindowSize() const { return wnd_size; }
-	Gui* GetGui() { return gui.get(); }
-	Input* GetInput() { return input.get(); }
-	Render* GetRender() { return render.get(); }
-	ResourceManager* GetResourceManager() { return res_mgr.get(); }
-	SceneManager* GetSceneManager() { return scene_mgr.get(); }
-	SoundManager* GetSoundManager() { return sound_mgr.get(); }
 	CustomCollisionWorld* GetPhysicsWorld() { return phy_world; }
 
 	void SetTitle(cstring title);
@@ -65,15 +57,7 @@ private:
 	bool IsWindowActive();
 	void SetWindowSizeInternal(const Int2& size);
 
-	static Engine* engine;
-	App* app;
 	CustomCollisionWorld* phy_world;
-	std::unique_ptr<Gui> gui;
-	std::unique_ptr<Input> input;
-	std::unique_ptr<Render> render;
-	std::unique_ptr<ResourceManager> res_mgr;
-	std::unique_ptr<SceneManager> scene_mgr;
-	std::unique_ptr<SoundManager> sound_mgr;
 	HWND hwnd;
 	Timer timer;
 	string title;

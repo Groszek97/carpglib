@@ -6,7 +6,7 @@
 #include "DirectX.h"
 
 //=================================================================================================
-SuperShader::SuperShader(Render* render) : render(render), pool(nullptr)
+SuperShader::SuperShader() : render(app::render), pool(nullptr)
 {
 	V(D3DXCreateEffectPool(&pool));
 

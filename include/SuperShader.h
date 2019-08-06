@@ -24,7 +24,7 @@ class SuperShader : public ShaderHandler
 	};
 
 public:
-	SuperShader(Render* render);
+	SuperShader();
 	~SuperShader();
 	void OnInit() override;
 	void OnReset() override;

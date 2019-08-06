@@ -7,7 +7,6 @@
 Scene::~Scene()
 {
 	DeleteElements(nodes);
-	delete camera;
 }
 
 void Scene::Update(float dt)

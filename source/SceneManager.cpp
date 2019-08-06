@@ -9,21 +9,21 @@
 #include "Mesh.h"
 #include "DirectX.h"
 
-SceneManager::SceneManager() : active_scene(nullptr), shader(nullptr)
+SceneManager* app::scene_mgr;
+
+SceneManager::SceneManager() : active_scene(nullptr), camera(nullptr), shader(nullptr)
 {
 }
 
 SceneManager::~SceneManager()
 {
-	scenes.capacity();
 	DeleteElements(scenes);
+	delete camera;
 }
 
-void SceneManager::Init(Render* render)
+void SceneManager::Init()
 {
-	this->render = render;
-
-	shader = new SuperShader(render);
+	shader = new SuperShader();
 }
 
 void SceneManager::Add(Scene* scene)
@@ -33,28 +33,19 @@ void SceneManager::Add(Scene* scene)
 	scenes.push_back(scene);
 }
 
-Scene* SceneManager::CreateDefaultScene()
-{
-	assert(!active_scene);
-	active_scene = new Scene;
-	active_scene->SetCamera(new Camera);
-	scenes.push_back(active_scene);
-	return active_scene;
-}
-
 void SceneManager::Draw()
 {
 	Color clear_color;
 	nodes.clear();
-	if(active_scene)
+	if(active_scene && camera)
 	{
-		clear_color = active_scene->GetClearColor();
+		clear_color = active_scene->clear_color;
 		active_scene->GetVisibleNodes(nodes);
 	}
 	else
 		clear_color = Color::Black;
 
-	IDirect3DDevice9* device = render->GetDevice();
+	IDirect3DDevice9* device = app::render->GetDevice();
 	V(device->Clear(0, nullptr, D3DCLEAR_ZBUFFER | D3DCLEAR_TARGET | D3DCLEAR_STENCIL, clear_color, 1.f, 0));
 	if(nodes.empty())
 		return;
@@ -71,7 +62,7 @@ void SceneManager::Draw()
 	V(e->Begin(&passes, 0));
 	V(e->BeginPass(0));
 
-	Matrix mat_view_proj = active_scene->GetCamera()->GetViewProjMatrix(),
+	Matrix mat_view_proj = camera->GetViewProjMatrix(),
 		mat_world, mat_combined;
 
 	for(SceneNode* node : nodes)
@@ -101,7 +92,7 @@ void SceneManager::Draw()
 			node->mesh_inst->SetupBones();
 			V(e->SetMatrixArray(shader->hMatBones, (D3DXMATRIX*)node->mesh_inst->mat_bones.data(), node->mesh_inst->mat_bones.size()));
 		}
-		V(device->SetVertexDeclaration(render->GetVertexDeclaration(mesh.vertex_decl)));
+		V(device->SetVertexDeclaration(app::render->GetVertexDeclaration(mesh.vertex_decl)));
 		V(device->SetStreamSource(0, mesh.vb, 0, mesh.vertex_size));
 		V(device->SetIndices(mesh.ib));
 

@@ -37,10 +37,11 @@ class Render
 public:
 	Render();
 	~Render();
-	void Init(SceneManager* scene_mgr);
+	void Init();
 	bool Reset(bool force);
 	void WaitReset();
-	void Draw();
+	bool CanDraw();
+	void Present();
 	bool CheckDisplay(const Int2& size, int& hz); // dla zera zwraca najlepszy hz
 	void RegisterShader(ShaderHandler* shader);
 	ID3DXEffect* CompileShader(cstring name);
@@ -88,7 +89,6 @@ private:
 	IDirect3D9* d3d;
 	IDirect3DDevice9* device;
 	ID3DXSprite* sprite;
-	SceneManager* scene_mgr;
 	vector<ShaderHandler*> shaders;
 	vector<RenderTarget*> targets;
 	IDirect3DVertexDeclaration9* vertex_decl[VDI_MAX];

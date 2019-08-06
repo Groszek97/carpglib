@@ -12,25 +12,24 @@
 #include "WindowsIncludes.h"
 
 //-----------------------------------------------------------------------------
+App* app::app;
+Engine* app::engine;
 const Int2 Engine::MIN_WINDOW_SIZE = Int2(800, 600);
 const Int2 Engine::DEFAULT_WINDOW_SIZE = Int2(1024, 768);
 
-//-----------------------------------------------------------------------------
-Engine* Engine::engine;
-
 //=================================================================================================
-Engine::Engine() : app(nullptr), initialized(false), shutdown(false), timer(false), hwnd(nullptr), cursor_visible(true), replace_cursor(false),
-locked_cursor(true), active(false), activation_point(-1, -1), phy_world(nullptr), title("Window"), force_pos(-1, -1), force_size(-1, -1), hidden_window(false)
+Engine::Engine() : initialized(false), shutdown(false), timer(false), hwnd(nullptr), cursor_visible(true), replace_cursor(false), locked_cursor(true),
+active(false), activation_point(-1, -1), phy_world(nullptr), title("Window"), force_pos(-1, -1), force_size(-1, -1), hidden_window(false)
 {
-	engine = this;
 	if(!Logger::GetInstance())
 		Logger::SetInstance(new Logger);
-	gui.reset(new Gui);
-	input.reset(new Input);
-	render.reset(new Render);
-	res_mgr.reset(new ResourceManager);
-	scene_mgr.reset(new SceneManager);
-	sound_mgr.reset(new SoundManager);
+	app::gui = new Gui;
+	app::input = new Input;
+	app::engine = this;
+	app::render = new Render;
+	app::res_mgr = new ResourceManager;
+	app::scene_mgr = new SceneManager;
+	app::sound_mgr = new SoundManager;
 }
 
 //=================================================================================================
@@ -65,7 +64,7 @@ void Engine::ChangeMode()
 		SetWindowLong(hwnd, GWL_STYLE, WS_OVERLAPPEDWINDOW);
 		SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOZORDER | SWP_NOSIZE);
 
-		render->Reset(true);
+		app::render->Reset(true);
 
 		SetWindowPos(hwnd, HWND_NOTOPMOST, (GetSystemMetrics(SM_CXSCREEN) - real_size.x) / 2, (GetSystemMetrics(SM_CYSCREEN) - real_size.y) / 2,
 			real_size.x, real_size.y, SWP_SHOWWINDOW | SWP_DRAWFRAME);
@@ -76,14 +75,14 @@ void Engine::ChangeMode()
 		SetWindowLong(hwnd, GWL_STYLE, WS_POPUPWINDOW);
 		SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOZORDER | SWP_NOSIZE);
 
-		render->Reset(true);
+		app::render->Reset(true);
 
 		SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, real_size.x, real_size.y, SWP_NOMOVE | SWP_SHOWWINDOW);
 	}
 
 	// reset cursor
 	replace_cursor = true;
-	input->UpdateMouseDif(Int2::Zero);
+	app::input->UpdateMouseDif(Int2::Zero);
 	unlock_point = real_size / 2;
 }
 
@@ -108,18 +107,18 @@ bool Engine::ChangeMode(const Int2& size, bool new_fullscreen, int hz)
 {
 	assert(size.x > 0 && size.y > 0 && hz >= 0);
 
-	if(size == wnd_size && new_fullscreen == fullscreen && hz == render->GetRefreshRate())
+	if(size == wnd_size && new_fullscreen == fullscreen && hz == app::render->GetRefreshRate())
 		return false;
 
 	if(!initialized)
 	{
 		fullscreen = new_fullscreen;
 		wnd_size = size;
-		render->SetRefreshRateInternal(hz);
+		app::render->SetRefreshRateInternal(hz);
 		return true;
 	}
 
-	if(!render->CheckDisplay(size, hz))
+	if(!app::render->CheckDisplay(size, hz))
 	{
 		Error("Engine: Can't change display mode to %dx%d (%d Hz, %s).", size.x, size.y, hz, new_fullscreen ? "fullscreen" : "windowed");
 		return false;
@@ -131,11 +130,11 @@ bool Engine::ChangeMode(const Int2& size, bool new_fullscreen, int hz)
 
 	fullscreen = new_fullscreen;
 	wnd_size = size;
-	render->SetRefreshRateInternal(hz);
+	app::render->SetRefreshRateInternal(hz);
 	ChangeMode();
 
 	if(size_changed)
-		app->OnResize();
+		app::app->OnResize();
 
 	return true;
 }
@@ -146,11 +145,14 @@ void Engine::Cleanup()
 {
 	Info("Engine: Cleanup.");
 
-	app->OnCleanup();
+	app::app->OnCleanup();
 
-	res_mgr->Cleanup();
-
-	render.reset();
+	delete app::input;
+	delete app::scene_mgr;
+	delete app::res_mgr;
+	delete app::render;
+	delete app::gui;
+	delete app::sound_mgr;
 
 	CustomCollisionWorld::Cleanup(phy_world);
 }
@@ -217,14 +219,14 @@ void Engine::DoTick(bool update_game)
 	}
 	else if(!locked_cursor && lock_on_focus)
 		locked_cursor = true;
-	input->UpdateMouseDif(mouse_dif);
+	app::input->UpdateMouseDif(mouse_dif);
 
 	// update keyboard shortcuts info
-	input->UpdateShortcuts();
+	app::input->UpdateShortcuts();
 
 	// update game
 	if(update_game)
-		app->OnUpdate(dt);
+		app::app->OnUpdate(dt);
 	if(shutdown)
 	{
 		if(active && locked_cursor)
@@ -240,11 +242,18 @@ void Engine::DoTick(bool update_game)
 		}
 		return;
 	}
-	input->UpdateMouseWheel(0);
+	app::input->UpdateMouseWheel(0);
 
-	render->Draw();
-	input->Update();
-	sound_mgr->Update(dt);
+	// drawing
+	if(app::render->CanDraw())
+	{
+		app::scene_mgr->Draw();
+		app::gui->Draw();
+		app::render->Present();
+	}
+
+	app::input->Update();
+	app::sound_mgr->Update(dt);
 }
 
 //=================================================================================================
@@ -291,11 +300,11 @@ long Engine::HandleEvent(HWND in_hwnd, uint msg, uint wParam, long lParam)
 	// handle keyboard
 	case WM_SYSKEYDOWN:
 	case WM_KEYDOWN:
-		input->Process((Key)wParam, true);
+		app::input->Process((Key)wParam, true);
 		return 0;
 	case WM_SYSKEYUP:
 	case WM_KEYUP:
-		input->Process((Key)wParam, false);
+		app::input->Process((Key)wParam, false);
 		return 0;
 
 	// handle mouse
@@ -330,7 +339,7 @@ long Engine::HandleEvent(HWND in_hwnd, uint msg, uint wParam, long lParam)
 				return result;
 			}
 
-			input->Process((Key)key, down);
+			app::input->Process((Key)key, down);
 			return result;
 		}
 
@@ -343,7 +352,7 @@ long Engine::HandleEvent(HWND in_hwnd, uint msg, uint wParam, long lParam)
 			byte key;
 			int result = 0;
 			MsgToKey(msg, wParam, key, result);
-			input->ProcessDoubleClick((Key)key);
+			app::input->ProcessDoubleClick((Key)key);
 			return result;
 		}
 
@@ -354,12 +363,12 @@ long Engine::HandleEvent(HWND in_hwnd, uint msg, uint wParam, long lParam)
 	// handle text input
 	case WM_CHAR:
 	case WM_SYSCHAR:
-		gui->OnChar((char)wParam);
+		app::gui->OnChar((char)wParam);
 		return 0;
 
 	// handle mouse wheel
 	case WM_MOUSEWHEEL:
-		input->UpdateMouseWheel(input->GetMouseWheel() + float(GET_WHEEL_DELTA_WPARAM(wParam)) / WHEEL_DELTA);
+		app::input->UpdateMouseWheel(app::input->GetMouseWheel() + float(GET_WHEEL_DELTA_WPARAM(wParam)) / WHEEL_DELTA);
 		return 0;
 	}
 
@@ -420,7 +429,7 @@ void Engine::InitWindow()
 	// register window class
 	WNDCLASSEX wc = {
 		sizeof(WNDCLASSEX), CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS,
-		[](HWND hwnd, uint msg, WPARAM wParam, LPARAM lParam) -> LRESULT { return Engine::Get().HandleEvent(hwnd, msg, wParam, lParam); },
+		[](HWND hwnd, uint msg, WPARAM wParam, LPARAM lParam) -> LRESULT { return app::engine->HandleEvent(hwnd, msg, wParam, lParam); },
 		0, 0, GetModuleHandle(nullptr), LoadIcon(GetModuleHandle(nullptr), "Icon"), LoadCursor(nullptr, IDC_ARROW), (HBRUSH)GetStockObject(BLACK_BRUSH),
 		nullptr, "Krystal", nullptr
 	};
@@ -468,7 +477,7 @@ void Engine::InitWindow()
 
 	// reset cursor
 	replace_cursor = true;
-	input->UpdateMouseDif(Int2::Zero);
+	app::input->UpdateMouseDif(Int2::Zero);
 	unlock_point = real_size / 2;
 
 	Info("Engine: Window created.");
@@ -524,7 +533,7 @@ void Engine::ShowError(cstring msg, Logger::Level level)
 // Initialize and start engine
 bool Engine::Start(App* app)
 {
-	this->app = app;
+	app::app = app;
 
 	// initialize engine
 	try
@@ -577,12 +586,12 @@ bool Engine::Start(App* app)
 void Engine::Init()
 {
 	InitWindow();
-	render->Init(scene_mgr.get());
-	sound_mgr->Init();
+	app::render->Init();
+	app::sound_mgr->Init();
 	phy_world = CustomCollisionWorld::Init();
-	res_mgr->Init(render->GetDevice(), sound_mgr.get());
-	scene_mgr->Init(render.get());
-	gui->Init(render->GetDevice(), render->GetSprite(), input.get());
+	app::res_mgr->Init();
+	app::gui->Init();
+	app::scene_mgr->Init();
 	initialized = true;
 }
 
@@ -653,9 +662,9 @@ void Engine::UpdateActivity(bool is_active)
 	else
 	{
 		ShowCursor(true);
-		input->ReleaseKeys();
+		app::input->ReleaseKeys();
 	}
-	app->OnFocus(active, activation_point);
+	app::app->OnFocus(active, activation_point);
 	activation_point = Int2(-1, -1);
 }
 

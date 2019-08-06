@@ -6,7 +6,7 @@
 #include "DirectX.h"
 
 //=================================================================================================
-DebugDrawer::DebugDrawer(Render* render) : render(render), device(render->GetDevice()), effect(nullptr), vertex_decl(nullptr), vb(nullptr), batch(false)
+DebugDrawer::DebugDrawer() : render(app::render), device(app::render->GetDevice()), effect(nullptr), vertex_decl(nullptr), vb(nullptr), batch(false)
 {
 	const D3DVERTEXELEMENT9 decl[] = {
 		{ 0, 0,  D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_POSITION,	0 },

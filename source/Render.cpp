@@ -9,6 +9,7 @@
 #include "SceneManager.h"
 #include "DirectX.h"
 
+Render* app::render;
 static const D3DFORMAT DISPLAY_FORMAT = D3DFMT_X8R8G8B8;
 static const D3DFORMAT BACKBUFFER_FORMAT = D3DFMT_A8R8G8B8;
 static const D3DFORMAT ZBUFFER_FORMAT = D3DFMT_D24S8;
@@ -50,10 +51,8 @@ Render::~Render()
 }
 
 //=================================================================================================
-void Render::Init(SceneManager* scene_mgr)
+void Render::Init()
 {
-	this->scene_mgr = scene_mgr;
-
 	// create direct3d object
 	d3d = Direct3DCreate9(D3D_SDK_VERSION);
 	if(!d3d)
@@ -107,7 +106,7 @@ void Render::Init(SceneManager* scene_mgr)
 	}
 
 	// check texture types
-	bool fullscreen = Engine::Get().IsFullscreen();
+	bool fullscreen = app::engine->IsFullscreen();
 	hr = d3d->CheckDeviceType(used_adapter, D3DDEVTYPE_HAL, DISPLAY_FORMAT, BACKBUFFER_FORMAT, fullscreen ? FALSE : TRUE);
 	if(FAILED(hr))
 		throw Format("Render: Unsupported backbuffer type %s for display %s! (%d)", STRING(BACKBUFFER_FORMAT), STRING(DISPLAY_FORMAT), hr);
@@ -194,16 +193,15 @@ void Render::Init(SceneManager* scene_mgr)
 //=================================================================================================
 void Render::GatherParams(D3DPRESENT_PARAMETERS& d3dpp)
 {
-	Engine& engine = Engine::Get();
-	d3dpp.Windowed = !engine.IsFullscreen();
+	d3dpp.Windowed = !app::engine->IsFullscreen();
 	d3dpp.BackBufferCount = 1;
 	d3dpp.BackBufferFormat = BACKBUFFER_FORMAT;
-	d3dpp.BackBufferWidth = engine.GetWindowSize().x;
-	d3dpp.BackBufferHeight = engine.GetWindowSize().y;
+	d3dpp.BackBufferWidth = app::engine->GetWindowSize().x;
+	d3dpp.BackBufferHeight = app::engine->GetWindowSize().y;
 	d3dpp.EnableAutoDepthStencil = TRUE;
 	d3dpp.MultiSampleType = (D3DMULTISAMPLE_TYPE)multisampling;
 	d3dpp.MultiSampleQuality = multisampling_quality;
-	d3dpp.hDeviceWindow = engine.GetWindowHandle();
+	d3dpp.hDeviceWindow = app::engine->GetWindowHandle();
 	d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
 	d3dpp.AutoDepthStencilFormat = ZBUFFER_FORMAT;
 	d3dpp.Flags = 0;
@@ -264,7 +262,7 @@ void Render::LogAndSelectResolution()
 	vector<Res> ress;
 	LocalString str = "Render: Available display modes:";
 	uint display_modes = d3d->GetAdapterModeCount(used_adapter, DISPLAY_FORMAT);
-	Int2 wnd_size = Engine::Get().GetWindowSize();
+	Int2 wnd_size = app::engine->GetWindowSize();
 	int best_hz = 0, best_valid_hz = 0;
 	bool res_valid = false, hz_valid = false;
 	for(uint i = 0; i < display_modes; ++i)
@@ -318,7 +316,7 @@ void Render::LogAndSelectResolution()
 		else
 			Info("Render: Defaulting resolution to %dx%dx (%d Hz).", Engine::DEFAULT_WINDOW_SIZE.x, Engine::DEFAULT_WINDOW_SIZE.y, best_hz);
 		refresh_hz = best_hz;
-		Engine::Get().SetWindowSizeInternal(Engine::DEFAULT_WINDOW_SIZE);
+		app::engine->SetWindowSizeInternal(Engine::DEFAULT_WINDOW_SIZE);
 	}
 	else if(!hz_valid)
 	{
@@ -455,7 +453,7 @@ void Render::WaitReset()
 	Info("Render: Device lost at loading. Waiting for reset.");
 	BeforeReset();
 
-	Engine::Get().UpdateActivity(false);
+	app::engine->UpdateActivity(false);
 
 	// gather params
 	D3DPRESENT_PARAMETERS d3dpp = { 0 };
@@ -464,7 +462,7 @@ void Render::WaitReset()
 	// wait for reset
 	while(true)
 	{
-		Engine::Get().DoPseudotick(true);
+		app::engine->DoPseudotick(true);
 
 		HRESULT hr = device->TestCooperativeLevel();
 		if(hr == D3DERR_DEVICELOST)
@@ -499,7 +497,7 @@ void Render::WaitReset()
 
 
 //=================================================================================================
-void Render::Draw()
+bool Render::CanDraw()
 {
 	HRESULT hr = device->TestCooperativeLevel();
 	if(hr != D3D_OK)
@@ -509,7 +507,7 @@ void Render::Draw()
 		{
 			// device lost, can't reset yet
 			Sleep(1);
-			return;
+			return false;
 		}
 		else if(hr == D3DERR_DEVICENOTRESET)
 		{
@@ -517,16 +515,20 @@ void Render::Draw()
 			if(!Reset(false))
 			{
 				Sleep(1);
-				return;
+				return false;
 			}
 		}
 		else
 			throw Format("Render: Lost directx device (%d).", hr);
 	}
 
-	scene_mgr->Draw();
+	return true;
+}
 
-	hr = device->Present(nullptr, nullptr, Engine::Get().GetWindowHandle(), nullptr);
+//=================================================================================================
+void Render::Present()
+{
+	HRESULT hr = device->Present(nullptr, nullptr, app::engine->GetWindowHandle(), nullptr);
 	if(FAILED(hr))
 	{
 		if(hr == D3DERR_DEVICELOST)
@@ -542,7 +544,7 @@ void Render::BeforeReset()
 	if(res_freed)
 		return;
 	res_freed = true;
-	Engine::Get().app->OnReset();
+	app::app->OnReset();
 	V(sprite->OnLostDevice());
 	for(ShaderHandler* shader : shaders)
 		shader->OnReset();
@@ -563,7 +565,7 @@ void Render::AfterReset()
 	for(RenderTarget* target : targets)
 		CreateRenderTargetTexture(target);
 	V(sprite->OnResetDevice());
-	Engine::Get().app->OnReload();
+	app::app->OnReload();
 	lost_device = false;
 	res_freed = false;
 }
@@ -911,7 +913,7 @@ int Render::SetMultisampling(int type, int level)
 		return 2;
 	}
 
-	bool fullscreen = Engine::Get().IsFullscreen();
+	bool fullscreen = app::engine->IsFullscreen();
 	DWORD levels, levels2;
 	if(SUCCEEDED(d3d->CheckDeviceMultiSampleType(0, D3DDEVTYPE_HAL, D3DFMT_A8R8G8B8, fullscreen ? FALSE : TRUE, (D3DMULTISAMPLE_TYPE)type, &levels)) &&
 		SUCCEEDED(d3d->CheckDeviceMultiSampleType(0, D3DDEVTYPE_HAL, D3DFMT_D24S8, fullscreen ? FALSE : TRUE, (D3DMULTISAMPLE_TYPE)type, &levels2)))
