@@ -474,6 +474,9 @@
     <ClCompile Include="source\LayoutLoader.cpp">
       <Filter>resources</Filter>
     </ClCompile>
+    <ClCompile Include="source\CrashHandler.cpp">
+      <Filter>systems</Filter>
+    </ClCompile>
     <ClCompile Include="source\SceneManager.cpp">
       <Filter>systems</Filter>
     </ClCompile>
