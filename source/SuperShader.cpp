@@ -9,9 +9,6 @@
 //=================================================================================================
 SuperShader::SuperShader() : render(app::render), pool(nullptr)
 {
-	V(D3DXCreateEffectPool(&pool));
-
-	render->RegisterShader(this);
 }
 
 //=================================================================================================
@@ -23,6 +20,9 @@ SuperShader::~SuperShader()
 //=================================================================================================
 void SuperShader::OnInit()
 {
+	if(!pool)
+		V(D3DXCreateEffectPool(&pool));
+
 	cstring path = Format("%s/super.fx", render->GetShadersDir().c_str());
 	FileReader f(path);
 	if(!f)

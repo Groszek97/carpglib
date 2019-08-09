@@ -16,7 +16,8 @@ static const D3DFORMAT ZBUFFER_FORMAT = D3DFMT_D24S8;
 
 //=================================================================================================
 Render::Render() : initialized(false), d3d(nullptr), device(nullptr), sprite(nullptr), current_target(nullptr), current_surf(nullptr), vsync(true),
-lost_device(false), res_freed(false), shaders_dir("../shaders"), refresh_hz(0), shader_version(-1), used_adapter(0), multisampling(0), multisampling_quality(0)
+lost_device(false), res_freed(false), shaders_dir("../shaders"), refresh_hz(0), shader_version(-1), used_adapter(0), multisampling(0),
+multisampling_quality(0)
 {
 	for(int i = 0; i < VDI_MAX; ++i)
 		vertex_decl[i] = nullptr;
@@ -336,11 +337,13 @@ void Render::SetDefaultRenderState()
 	V(device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA));
 	V(device->SetRenderState(D3DRS_ALPHAREF, 200));
 	V(device->SetRenderState(D3DRS_ALPHAFUNC, D3DCMP_GREATEREQUAL));
+	V(device->SetRenderState(D3DRS_FILLMODE, D3DFILL_SOLID));
 
-	r_alphatest = false;
-	r_alphablend = false;
-	r_nocull = false;
-	r_nozwrite = false;
+	alphatest = false;
+	alphablend = false;
+	nocull = false;
+	nozwrite = false;
+	wireframe = false;
 }
 
 //=================================================================================================
@@ -850,42 +853,52 @@ Texture* Render::CopyToTexture(RenderTarget* target)
 }
 
 //=================================================================================================
-void Render::SetAlphaBlend(bool use_alphablend)
+void Render::SetAlphaBlend(bool alphablend)
 {
-	if(use_alphablend != r_alphablend)
+	if(this->alphablend != alphablend)
 	{
-		r_alphablend = use_alphablend;
-		V(device->SetRenderState(D3DRS_ALPHABLENDENABLE, r_alphablend ? TRUE : FALSE));
+		this->alphablend = alphablend;
+		V(device->SetRenderState(D3DRS_ALPHABLENDENABLE, alphablend ? TRUE : FALSE));
 	}
 }
 
 //=================================================================================================
-void Render::SetAlphaTest(bool use_alphatest)
+void Render::SetAlphaTest(bool alphatest)
 {
-	if(use_alphatest != r_alphatest)
+	if(this->alphatest != alphatest)
 	{
-		r_alphatest = use_alphatest;
-		V(device->SetRenderState(D3DRS_ALPHATESTENABLE, r_alphatest ? TRUE : FALSE));
+		this->alphatest = alphatest;
+		V(device->SetRenderState(D3DRS_ALPHATESTENABLE, alphatest ? TRUE : FALSE));
 	}
 }
 
 //=================================================================================================
-void Render::SetNoCulling(bool use_nocull)
+void Render::SetNoCulling(bool nocull)
 {
-	if(use_nocull != r_nocull)
+	if(this->nocull != nocull)
 	{
-		r_nocull = use_nocull;
-		V(device->SetRenderState(D3DRS_CULLMODE, r_nocull ? D3DCULL_NONE : D3DCULL_CCW));
+		this->nocull = nocull;
+		V(device->SetRenderState(D3DRS_CULLMODE, nocull ? D3DCULL_NONE : D3DCULL_CCW));
 	}
 }
 
 //=================================================================================================
-void Render::SetNoZWrite(bool use_nozwrite)
+void Render::SetNoZWrite(bool nozwrite)
 {
-	if(use_nozwrite != r_nozwrite)
+	if(this->nozwrite != nozwrite)
 	{
-		r_nozwrite = use_nozwrite;
-		V(device->SetRenderState(D3DRS_ZWRITEENABLE, r_nozwrite ? FALSE : TRUE));
+		this->nozwrite = nozwrite;
+		V(device->SetRenderState(D3DRS_ZWRITEENABLE, nozwrite ? FALSE : TRUE));
+	}
+}
+
+//=================================================================================================
+void Render::SetWireframe(bool wireframe)
+{
+	if(this->wireframe != wireframe)
+	{
+		this->wireframe = wireframe;
+		V(device->SetRenderState(D3DRS_FILLMODE, wireframe ? D3DFILL_WIREFRAME : D3DFILL_SOLID));
 	}
 }
 

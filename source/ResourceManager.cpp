@@ -38,6 +38,9 @@ void ResourceManager::Init()
 	RegisterExtensions();
 
 	Mesh::MeshInit();
+
+	if(!engine_res_dir.empty())
+		AddDir(engine_res_dir.c_str());
 }
 
 //=================================================================================================
@@ -54,8 +57,7 @@ void ResourceManager::RegisterExtensions()
 	exts["tga"] = ResourceType::Texture;
 
 	exts["qmsh"] = ResourceType::Mesh;
-
-	exts["phy"] = ResourceType::VertexData;
+	exts["phy"] = ResourceType::Mesh;
 
 	exts["aiff"] = ResourceType::Sound;
 	exts["asf"] = ResourceType::Sound;

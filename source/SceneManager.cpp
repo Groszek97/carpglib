@@ -7,11 +7,12 @@
 #include "Render.h"
 #include "SuperShader.h"
 #include "Mesh.h"
+#include "DebugDrawer.h"
 #include "DirectX.h"
 
 SceneManager* app::scene_mgr;
 
-SceneManager::SceneManager() : active_scene(nullptr), camera(nullptr), shader(nullptr), use_fog(true)
+SceneManager::SceneManager() : active_scene(nullptr), camera(nullptr), shader(nullptr), debug_drawer(nullptr), use_fog(true), use_lighting(true)
 {
 }
 
@@ -23,7 +24,11 @@ SceneManager::~SceneManager()
 
 void SceneManager::Init()
 {
-	shader = new SuperShader();
+	shader = new SuperShader;
+	debug_drawer = new DebugDrawer;
+
+	app::render->RegisterShader(shader);
+	app::render->RegisterShader(debug_drawer);
 }
 
 void SceneManager::Add(Scene* scene)
@@ -47,11 +52,25 @@ void SceneManager::Draw()
 
 	IDirect3DDevice9* device = app::render->GetDevice();
 	V(device->Clear(0, nullptr, D3DCLEAR_ZBUFFER | D3DCLEAR_TARGET | D3DCLEAR_STENCIL, clear_color, 1.f, 0));
-	if(nodes.empty())
-		return;
 
 	V(device->BeginScene());
 
+	if(!nodes.empty())
+		DrawNodes();
+
+	if(!handlers.empty())
+	{
+		debug_drawer->Begin(*camera);
+		for(DrawHandler& handler : handlers)
+			handler(debug_drawer);
+		debug_drawer->End();
+	}
+
+	V(device->EndScene());
+}
+
+void SceneManager::DrawNodes()
+{
 	/*Scene* scene = active_scene;
 	shader->Prepare();
 	if(use_fog && scene)
@@ -74,18 +93,42 @@ void SceneManager::Draw()
 
 	for(SceneNode* node : nodes)
 	{
-		
+
 	}
 
 	shader->End();*/
 
+	Scene* scene = active_scene;
+	IDirect3DDevice9* device = app::render->GetDevice();
 	uint current_id = 0xFFFFFFFF;
 	ID3DXEffect* e = shader->GetEffect();
 	D3DXHANDLE tech;
 	uint passes;
+	Vec4 v;
 	V(e->FindNextValidTechnique(nullptr, &tech));
 	V(e->SetTechnique(tech));
-	V(e->SetVector(shader->hTint, (D3DXVECTOR4*)&Vec4::One));
+	V(e->SetVector(shader->hTint, reinterpret_cast<const D3DXVECTOR4*>(&Vec4::One)));
+	v = scene->ambient_color;
+	V(e->SetVector(shader->hAmbientColor, reinterpret_cast<const D3DXVECTOR4*>(&v)));
+
+	bool fog = use_fog && scene->use_fog;
+	if(fog)
+	{
+		v = Vec4(scene->fog_range.x, scene->fog_range.y, scene->fog_range.y - scene->fog_range.x, 0);
+		V(e->SetVector(shader->hFogParams, reinterpret_cast<D3DXVECTOR4*>(&v)));
+		v = scene->fog_color;
+		V(e->SetVector(shader->hFogColor, reinterpret_cast<D3DXVECTOR4*>(&v)));
+	}
+
+	bool lighting = use_lighting && scene->use_light;
+	if(lighting)
+	{
+		v = Vec4(scene->light_dir, 0.f);
+		V(e->SetVector(shader->hLightDir, reinterpret_cast<D3DXVECTOR4*>(&v)));
+		v = scene->light_color;
+		V(e->SetVector(shader->hLightColor, reinterpret_cast<D3DXVECTOR4*>(&v)));
+	}
+
 	V(e->Begin(&passes, 0));
 	V(e->BeginPass(0));
 
@@ -94,7 +137,7 @@ void SceneManager::Draw()
 
 	for(SceneNode* node : nodes)
 	{
-		uint id = shader->GetShaderId(node->mesh_inst != nullptr, false, false, false, false, false, false);
+		uint id = shader->GetShaderId(node->mesh_inst != nullptr, false, fog, false, false, false, lighting);
 		if(id != current_id)
 		{
 			V(e->EndPass());
@@ -146,8 +189,6 @@ void SceneManager::Draw()
 
 	V(e->EndPass());
 	V(e->End());
-
-	V(device->EndScene());
 }
 
 void SceneManager::SetActiveScene(Scene* scene)
