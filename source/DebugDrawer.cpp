@@ -60,19 +60,20 @@ void DebugDrawer::OnRelease()
 void DebugDrawer::Begin(Camera& camera)
 {
 	mat_view_proj = camera.GetViewProjMatrix();
+	cam_pos = camera.from;
 	color = Color::White;
 
 	render->SetAlphaBlend(true);
 	render->SetAlphaTest(false);
 	render->SetNoZWrite(false);
 	render->SetNoCulling(true);
-	render->SetWireframe(true);
+	//render->SetWireframe(true);
 }
 
 //=================================================================================================
 void DebugDrawer::End()
 {
-	render->SetWireframe(false);
+	//render->SetWireframe(false);
 }
 
 //=================================================================================================
@@ -150,10 +151,43 @@ void DebugDrawer::DrawShape(Shape shape, const Matrix& m)
 //=================================================================================================
 void DebugDrawer::AddQuad(const Vec3(&pts)[4])
 {
+	assert(batch);
 	verts.push_back(VColor(pts[0], color));
 	verts.push_back(VColor(pts[1], color));
 	verts.push_back(VColor(pts[2], color));
 	verts.push_back(VColor(pts[2], color));
 	verts.push_back(VColor(pts[1], color));
 	verts.push_back(VColor(pts[3], color));
+}
+
+//=================================================================================================
+void DebugDrawer::AddLine(const Vec3& from, const Vec3& to, float width)
+{
+	assert(batch);
+	uint offset = verts.size();
+	verts.resize(offset + 6);
+	VColor* v = verts.data() + offset;
+	AddLineInternal(v, from, to, width);
+}
+
+//=================================================================================================
+// https://www.gamedev.net/forums/topic/617595-solved-thick-constant-width-lines-using-quads/
+// can be used to draw lines with selected pixel width
+// fix for line point behind camera
+void DebugDrawer::AddLineInternal(VColor* v, const Vec3& from, const Vec3& to, float width)
+{
+	width /= 2;
+
+	Vec3 line_dir = from - to;
+	Vec3 quad_normal = cam_pos - (to + from) / 2;
+	Vec3 extrude_dir = line_dir.Cross(quad_normal).Normalize();
+
+	v[0].pos = from + extrude_dir * width;
+	v[1].pos = from - extrude_dir * width;
+	v[2].pos = to + extrude_dir * width;
+	v[3].pos = v[1].pos;
+	v[4].pos = v[2].pos;
+	v[5].pos = to - extrude_dir * width;
+	for(int i = 0; i < 6; ++i)
+		v[i].color = color;
 }

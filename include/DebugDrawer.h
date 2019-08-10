@@ -29,6 +29,7 @@ public:
 	void EndBatch();
 	void DrawShape(Shape shape, const Matrix& m);
 	void AddQuad(const Vec3(&pts)[4]);
+	void AddLine(const Vec3& from, const Vec3& to, float width);
 
 	Handler GetHandler() const { return handler; }
 
@@ -36,6 +37,8 @@ public:
 	void SetColor(Color color) { this->color = color; }
 
 private:
+	void AddLineInternal(VColor* v, const Vec3& from, const Vec3& to, float width);
+
 	Render* render;
 	IDirect3DDevice9* device;
 	Handler handler;
@@ -49,5 +52,6 @@ private:
 	Vec4 color;
 	vector<VColor> verts;
 	Matrix mat_view_proj;
+	Vec3 cam_pos;
 	bool batch;
 };

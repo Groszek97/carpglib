@@ -16,7 +16,8 @@ struct Color
 
 	Color() {}
 	Color(uint value) : value(value) {}
-	Color(byte r, byte g, byte b, byte a = 255) : r(r), g(g), b(b), a(a) {}
+	Color(int r, int g, int b, int a = 255) : r(r), g(g), b(b), a(a) {}
+	Color(float r, float g, float b, float a = 1.f) : r(byte(r * 255)), g(byte(g * 255)), b(byte(b * 255)), a(byte(a * 255)) {}
 	Color(const Color& c) : value(c.value) {}
 
 	bool operator == (const Color& c) const { return value == c.value; }
