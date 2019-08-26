@@ -7,6 +7,7 @@
 #include "Render.h"
 #include "Gui.h"
 #include "Input.h"
+#include "SceneManager.h"
 #include "App.h"
 #include "WindowsIncludes.h"
 
@@ -28,6 +29,7 @@ wnd_size(DEFAULT_WINDOW_SIZE)
 	app::engine = this;
 	app::render = new Render;
 	app::res_mgr = new ResourceManager;
+	app::scene_mgr = new SceneManager;
 	app::sound_mgr = new SoundManager;
 }
 
@@ -153,6 +155,7 @@ void Engine::Cleanup()
 	delete app::res_mgr;
 	delete app::render;
 	delete app::gui;
+	delete app::scene_mgr;
 	delete app::sound_mgr;
 
 	CustomCollisionWorld::Cleanup(phy_world);
@@ -245,7 +248,13 @@ void Engine::DoTick(bool update_game)
 	}
 	app::input->UpdateMouseWheel(0);
 
-	app::render->Draw();
+	if(app::render->CanDraw())
+	{
+		app::scene_mgr->Draw();
+		app::gui->Draw();
+		app::render->Present();
+	}
+
 	app::input->Update();
 	app::sound_mgr->Update(dt);
 }

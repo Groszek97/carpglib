@@ -2,7 +2,7 @@
 #include "EngineCore.h"
 #include "DebugDrawer.h"
 #include "Render.h"
-#include "CameraBase.h"
+#include "Camera.h"
 #include "DirectX.h"
 
 //=================================================================================================
@@ -59,9 +59,9 @@ void DebugDrawer::OnRelease()
 }
 
 //=================================================================================================
-void DebugDrawer::SetCamera(const CameraBase& camera)
+void DebugDrawer::SetCamera(Camera& camera)
 {
-	mat_view_proj = camera.matViewProj;
+	mat_view_proj = camera.GetViewProj();
 }
 
 //=================================================================================================

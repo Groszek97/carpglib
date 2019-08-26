@@ -1147,14 +1147,11 @@ void Gui::Flush(bool lock)
 }
 
 //=================================================================================================
-void Gui::Draw(bool draw_layers, bool draw_dialogs)
+void Gui::Draw()
 {
 	PROFILER_BLOCK("DrawGui");
 
 	wnd_size = app::engine->GetWindowSize();
-
-	if(!draw_layers && !draw_dialogs)
-		return;
 
 	app::render->SetAlphaTest(false);
 	app::render->SetAlphaBlend(true);
@@ -1176,10 +1173,11 @@ void Gui::Draw(bool draw_layers, bool draw_dialogs)
 	V(effect->BeginPass(0));
 
 	// rysowanie
-	if(draw_layers)
+	//if(draw_layers)
 		layer->Draw();
-	if(draw_dialogs)
+	//if(draw_dialogs)
 		dialog_layer->Draw();
+	FIXME;
 
 	// draw cursor
 	if(NeedCursor())
