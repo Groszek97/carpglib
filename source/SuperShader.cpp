@@ -189,3 +189,47 @@ ID3DXEffect* SuperShader::CompileShader(uint id)
 
 	return s.e;
 }
+
+void SuperShader::SetFog(Color color, const Vec2& range)
+{
+	assert(range.x >= 0.f && range.x <= range.y);
+	use_fog = true;
+
+	Vec4 value = color;
+	V(current_effect->SetVector(h_fog_color, (D3DXVECTOR4*)&value));
+
+	value = Vec4(range.x, range.y, range.y - range.x, 0.f);
+	V(current_effect->SetVector(h_fog_color, (D3DXVECTOR4*)&value));
+}
+
+void SuperShader::SetDirLight(Color ambient_color, Color light_color, const Vec3& light_dir)
+{
+	use_point_light = false;
+	use_dir_light = true;
+
+	Vec4 value = ambient_color;
+	V(current_effect->SetVector(h_ambient_color, (D3DXVECTOR4*)&value));
+
+	value = light_color;
+	V(current_effect->SetVector(h_light_color, (D3DXVECTOR4*)&value));
+
+	value = Vec4(light_dir.Normalized(), 1.f);
+	V(current_effect->SetVector(h_light_dir, (D3DXVECTOR4*)&value));
+}
+
+void SuperShader::SetPointLight(Color ambient_color)
+{
+	use_point_light = true;
+	use_dir_light = false;
+
+	Vec4 value = ambient_color;
+	V(current_effect->SetVector(h_ambient_color, (D3DXVECTOR4*)&value));
+}
+
+void SuperShader::SetLightingDisabled()
+{
+	use_point_light = false;
+	use_dir_light = false;
+
+	V(current_effect->SetVector(h_ambient_color, (D3DXVECTOR4*)&Vec4::One));
+}
