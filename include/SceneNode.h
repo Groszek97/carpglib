@@ -2,6 +2,11 @@
 
 struct SceneNode : public ObjectPoolProxy<SceneNode>
 {
+	SceneNode() : mesh(nullptr), mesh_inst(nullptr) {}
+
 	Mesh* mesh;
-	Vec3 pos;
+	MeshInstance* mesh_inst;
+	Matrix mat_world;
+	Vec3 pos, rot, scale;
+	bool changed;
 };
