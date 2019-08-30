@@ -9,8 +9,9 @@ struct Camera
 		Update();
 		return mat_view_proj;
 	}
+	//const Vec3& GetFrom() const { return from; }
 
-private:
+//private:
 	void Update();
 
 	Matrix mat_view, mat_proj, mat_view_proj;

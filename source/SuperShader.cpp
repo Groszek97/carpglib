@@ -36,25 +36,25 @@ void SuperShader::OnInit()
 	Info("Setting up super shader parameters.");
 	GetShader(0);
 	ID3DXEffect* e = shaders[0].e;
-	hMatCombined = e->GetParameterByName(nullptr, "matCombined");
-	hMatWorld = e->GetParameterByName(nullptr, "matWorld");
-	hMatBones = e->GetParameterByName(nullptr, "matBones");
-	hTint = e->GetParameterByName(nullptr, "tint");
-	hAmbientColor = e->GetParameterByName(nullptr, "ambientColor");
-	hFogColor = e->GetParameterByName(nullptr, "fogColor");
-	hFogParams = e->GetParameterByName(nullptr, "fogParams");
-	hLightDir = e->GetParameterByName(nullptr, "lightDir");
-	hLightColor = e->GetParameterByName(nullptr, "lightColor");
-	hLights = e->GetParameterByName(nullptr, "lights");
-	hSpecularColor = e->GetParameterByName(nullptr, "specularColor");
-	hSpecularIntensity = e->GetParameterByName(nullptr, "specularIntensity");
-	hSpecularHardness = e->GetParameterByName(nullptr, "specularHardness");
-	hCameraPos = e->GetParameterByName(nullptr, "cameraPos");
-	hTexDiffuse = e->GetParameterByName(nullptr, "texDiffuse");
-	hTexNormal = e->GetParameterByName(nullptr, "texNormal");
-	hTexSpecular = e->GetParameterByName(nullptr, "texSpecular");
-	assert(hMatCombined && hMatWorld && hMatBones && hTint && hAmbientColor && hFogColor && hFogParams && hLightDir && hLightColor && hLights && hSpecularColor
-		&& hSpecularIntensity && hSpecularHardness && hCameraPos && hTexDiffuse && hTexNormal && hTexSpecular);
+	h_mat_combined = e->GetParameterByName(nullptr, "mat_combined");
+	h_mat_world = e->GetParameterByName(nullptr, "mat_world");
+	h_mat_bones = e->GetParameterByName(nullptr, "mat_bones");
+	h_tint = e->GetParameterByName(nullptr, "tint");
+	h_ambient_color = e->GetParameterByName(nullptr, "ambient_color");
+	h_fog_color = e->GetParameterByName(nullptr, "fog_color");
+	h_fog_params = e->GetParameterByName(nullptr, "fog_params");
+	h_light_dir = e->GetParameterByName(nullptr, "light_dir");
+	h_light_color = e->GetParameterByName(nullptr, "light_color");
+	h_lights = e->GetParameterByName(nullptr, "lights");
+	h_specular_color = e->GetParameterByName(nullptr, "specular_color");
+	h_specular_intensity = e->GetParameterByName(nullptr, "specular_intensity");
+	h_specular_hardness = e->GetParameterByName(nullptr, "specular_hardness");
+	h_camera_pos = e->GetParameterByName(nullptr, "camera_pos");
+	h_tex_diffuse = e->GetParameterByName(nullptr, "tex_diffuse");
+	h_tex_normal = e->GetParameterByName(nullptr, "tex_normal");
+	h_tex_specular = e->GetParameterByName(nullptr, "tex_specular");
+	assert(h_mat_combined && h_mat_world && h_mat_bones && h_tint && h_ambient_color && h_fog_color && h_fog_params && h_light_dir && h_light_color && h_lights
+		&& h_specular_color && h_specular_intensity && h_specular_hardness && h_camera_pos && h_tex_diffuse && h_tex_normal && h_tex_specular);
 }
 
 //=================================================================================================
@@ -188,48 +188,4 @@ ID3DXEffect* SuperShader::CompileShader(uint id)
 	s.id = id;
 
 	return s.e;
-}
-
-void SuperShader::SetFog(Color color, const Vec2& range)
-{
-	assert(range.x >= 0.f && range.x <= range.y);
-	use_fog = true;
-
-	Vec4 value = color;
-	V(current_effect->SetVector(h_fog_color, (D3DXVECTOR4*)&value));
-
-	value = Vec4(range.x, range.y, range.y - range.x, 0.f);
-	V(current_effect->SetVector(h_fog_color, (D3DXVECTOR4*)&value));
-}
-
-void SuperShader::SetDirLight(Color ambient_color, Color light_color, const Vec3& light_dir)
-{
-	use_point_light = false;
-	use_dir_light = true;
-
-	Vec4 value = ambient_color;
-	V(current_effect->SetVector(h_ambient_color, (D3DXVECTOR4*)&value));
-
-	value = light_color;
-	V(current_effect->SetVector(h_light_color, (D3DXVECTOR4*)&value));
-
-	value = Vec4(light_dir.Normalized(), 1.f);
-	V(current_effect->SetVector(h_light_dir, (D3DXVECTOR4*)&value));
-}
-
-void SuperShader::SetPointLight(Color ambient_color)
-{
-	use_point_light = true;
-	use_dir_light = false;
-
-	Vec4 value = ambient_color;
-	V(current_effect->SetVector(h_ambient_color, (D3DXVECTOR4*)&value));
-}
-
-void SuperShader::SetLightingDisabled()
-{
-	use_point_light = false;
-	use_dir_light = false;
-
-	V(current_effect->SetVector(h_ambient_color, (D3DXVECTOR4*)&Vec4::One));
 }
