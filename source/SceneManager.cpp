@@ -12,6 +12,13 @@
 
 SceneManager* app::scene_mgr;
 
+struct LightData
+{
+	Vec3 pos;
+	float range;
+	Vec4 color;
+};
+
 void SceneManager::Draw()
 {
 	IDirect3DDevice9* device = app::render->GetDevice();
@@ -81,17 +88,20 @@ void SceneManager::Draw()
 	}
 
 	const Matrix& mat_view_proj = camera->GetViewProj();
-	const uint flags_common = shader->GetShaderId(false, false, fog, false, false, point_light, dir_light);
+	Matrix mat_world;
 	Mesh* mesh = nullptr;
+	LightData lights[3];
+	memset(lights, 0, sizeof(lights));
 	uint passes;
 
 	for(SceneNodeGroup& group : groups)
 	{
 		const bool animated = IsSet(group.flags, SceneNode::ANIMATED);
+		const bool normal_map = IsSet(group.flags, SceneNode::NORMAL_MAP);
+		const bool specular_map = IsSet(group.flags, SceneNode::SPECULAR_MAP);
 
 		uint flags = shader->GetShaderId(animated, IsSet(group.flags, SceneNode::HAVE_BINORMALS),
-			false, false, false, false, false);
-		flags |= flags_common;
+			fog, specular_map, normal_map, point_light, dir_light);
 
 		effect = shader->GetShader(flags);
 		D3DXHANDLE tech;
@@ -104,7 +114,11 @@ void SceneManager::Draw()
 		for(auto it = nodes.begin() + group.start, end = nodes.begin() + group.end + 1; it != end; ++it)
 		{
 			SceneNode* node = *it;
-			const Matrix& mat_world = node->GetWorldMatrix();
+			Matrix mat_world;
+			if(node->billboard)
+				mat_world = Matrix::CreateLookAt(node->pos, camera->from).Inverse() * camera->mat_view_proj;
+			else
+				mat_world = Matrix::Transform(node->pos, node->rot, node->scale);
 			Matrix mat_combined = mat_world * mat_view_proj;
 
 			// set mesh
@@ -118,31 +132,41 @@ void SceneManager::Draw()
 
 			V(effect->SetMatrix(shader->h_mat_combined, (D3DXMATRIX*)&mat_combined));
 			V(effect->SetMatrix(shader->h_mat_world, (D3DXMATRIX*)&mat_world));
-			//V(effect->SetVector(shader->hTint, (D3DXVECTOR4*)&node->tint));
+			V(effect->SetVector(shader->h_tint, (D3DXVECTOR4*)&node->tint));
 			if(animated)
 			{
 				MeshInstance& mesh_inst = *node->mesh_inst;
 				V(effect->SetMatrixArray(shader->h_mat_bones, (D3DXMATRIX*)mesh_inst.mat_bones.data(), mesh_inst.mat_bones.size()));
 			}
+			if(point_light)
+			{
+				for(uint i = 0, count = min(3u, node->lights.size()); i < count; ++i)
+				{
+					lights[i].pos = node->lights[i]->pos;
+					lights[i].range = node->lights[i]->scale.x;
+					lights[i].color = node->lights[i]->tint;
+				}
+				V(effect->SetRawValue(shader->h_lights, lights, 0, sizeof(LightData) * 3));
+			}
 
 			for(int i = 0; i < mesh->head.n_subs; ++i)
 			{
-				//if(!IsSet(node->subs, 1 << i))
-				//	continue;
+				if(!IsSet(node->subs, 1 << i))
+					continue;
 
 				const Mesh::Submesh& sub = mesh->subs[i];
 
 				// set texture
 				V(effect->SetTexture(shader->h_tex_diffuse, mesh->GetTexture(i)));
-				//if(cl_normalmap && IsSet(current_flags, SceneNode::F_NORMAL_MAP))
-				//	V(e->SetTexture(super_shader->hTexNormal, sub.tex_normal->tex));
-				//if(cl_specularmap && IsSet(current_flags, SceneNode::F_SPECULAR_MAP))
-				//	V(e->SetTexture(super_shader->hTexSpecular, sub.tex_specular->tex));
+				if(normal_map)
+					V(effect->SetTexture(shader->h_tex_normal, sub.tex_normal->tex));
+				if(specular_map)
+					V(effect->SetTexture(shader->h_tex_specular, sub.tex_specular->tex));
 
-				// ustawienia œwiat³a
-				//V(e->SetVector(super_shader->hSpecularColor, (D3DXVECTOR4*)&sub.specular_color));
-				//V(e->SetFloat(super_shader->hSpecularIntensity, sub.specular_intensity));
-				//V(e->SetFloat(super_shader->hSpecularHardness, (float)sub.specular_hardness));
+				// lighting
+				V(effect->SetVector(shader->h_specular_color, (D3DXVECTOR4*)&sub.specular_color));
+				V(effect->SetFloat(shader->h_specular_intensity, sub.specular_intensity));
+				V(effect->SetFloat(shader->h_specular_hardness, (float)sub.specular_hardness));
 
 				V(effect->CommitChanges());
 				V(device->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, sub.min_ind, sub.n_ind, sub.first * 3, sub.tris));
@@ -161,11 +185,16 @@ void SceneManager::ProcessNodes()
 	if(nodes.empty())
 		return;
 
+	int flag_filter = SceneNode::ANIMATED | SceneNode::HAVE_BINORMALS;
+	if(use_normal_map)
+		flag_filter |= SceneNode::NORMAL_MAP;
+	if(use_specular_map)
+		flag_filter |= SceneNode::SPECULAR_MAP;
+
 	for(SceneNode* node : nodes)
 	{
-		node->tmp_flags = node->flags;
-		if(!node->mesh->IsLoaded())
-			app::res_mgr->LoadInstant(node->mesh);
+		node->tmp_flags = node->flags & flag_filter;
+		node->mesh->EnsureIsLoaded();
 		if(node->mesh_inst)
 			node->mesh_inst->SetupBones();
 	}

@@ -35,7 +35,7 @@ public:
 	ID3DXEffect* CompileShader(uint id);
 	ID3DXEffect* GetEffect() const { return shaders.front().e; }
 
-	D3DXHANDLE h_mat_combined, h_mat_world, h_mat_bones, h_tint, h_ambient_color, h_fog_color, h_fog_params, h_light_dir, h_light_color, hLights,
+	D3DXHANDLE h_mat_combined, h_mat_world, h_mat_bones, h_tint, h_ambient_color, h_fog_color, h_fog_params, h_light_dir, h_light_color, h_lights,
 		h_specular_color, h_specular_intensity, h_specular_hardness, h_camera_pos, h_tex_diffuse, h_tex_normal, h_tex_specular;
 
 private:
