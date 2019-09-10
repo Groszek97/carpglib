@@ -278,13 +278,29 @@ inline float Clip(float f, float range = PI * 2)
 	return f - range * n;
 }
 
+inline constexpr bool IsNormalizedAngle(float angle)
+{
+	return angle >= 0.f && angle < PI * 2;
+}
+
+// Convert left handed <-> right handed rotation
+inline float ConvertAngle(float angle)
+{
+	assert(IsNormalizedAngle(angle));
+	return PI * 2 - angle;
+}
+
 // Return angle between two points
 float Angle(float x1, float y1, float x2, float y2);
+inline float AngleLH(float x1, float y1, float x2, float y2)
+{
+	return ConvertAngle(Angle(x1, y1, x2, y2));
+}
 
 // Return difference between two angles
 inline float AngleDiff(float a, float b)
 {
-	assert(a >= 0.f && a < PI * 2 && b >= 0.f && b < PI * 2);
+	assert(IsNormalizedAngle(a) && IsNormalizedAngle(b));
 	return min((2 * PI) - abs(a - b), abs(b - a));
 }
 
@@ -485,10 +501,12 @@ struct Int2
 
 	// Assignment operators
 	Int2& operator = (const Int2& i);
-	void operator += (const Int2& i);
-	void operator -= (const Int2& i);
-	void operator *= (int a);
-	void operator /= (int a);
+	Int2& operator += (const Int2& i);
+	Int2& operator -= (const Int2& i);
+	Int2& operator *= (int a);
+	Int2& operator *= (float a);
+	Int2& operator /= (int a);
+	Int2& operator /= (float a);
 
 	// Unary operators
 	Int2 operator + () const;
@@ -500,8 +518,9 @@ struct Int2
 	Int2 operator - (const Int2& i) const;
 	Int2 operator * (const Vec2& scale) const;
 	Int2 operator * (int a) const;
-	Int2 operator * (float s) const;
+	Int2 operator * (float a) const;
 	Int2 operator / (int a) const;
+	Int2 operator / (float a) const;
 	friend Int2 operator * (int a, const Int2& i);
 
 	// Methods
