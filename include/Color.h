@@ -20,8 +20,20 @@ struct Color
 	Color(float r, float g, float b, float a = 1.f) : r(byte(r * 255)), g(byte(g * 255)), b(byte(b * 255)), a(byte(a * 255)) {}
 	Color(const Color& c) : value(c.value) {}
 
-	bool operator == (const Color& c) const { return value == c.value; }
-	bool operator != (const Color& c) const { return value != c.value; }
+	bool operator == (Color c) const { return value == c.value; }
+	bool operator != (Color c) const { return value != c.value; }
+
+	Color operator * (Color c) const
+	{
+		return Color(r * c.r / 255, g * c.g / 255, b * c.b / 255, a * c.a / 255);
+	}
+	void operator *= (Color c)
+	{
+		r = byte(a * c.r / 255);
+		g = byte(g * c.g / 255);
+		b = byte(b * c.b / 255);
+		a = byte(a * c.a / 255);
+	}
 
 	operator uint () const { return value; }
 	operator Vec4 () const { return Vec4(float(r) / 255.f, float(g) / 255.f, float(b) / 255.f, float(a) / 255.f); }

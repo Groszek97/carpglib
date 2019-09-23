@@ -230,13 +230,13 @@ inline T& Add1(list<T>& v)
 
 // Returns random item from vector
 template<typename T>
-T& RandomItem(vector<T>& v)
+inline T& RandomItem(vector<T>& v)
 {
 	return v[Rand() % v.size()];
 }
 
 template<typename T>
-T RandomItemPop(vector<T>& v)
+inline T RandomItemPop(vector<T>& v)
 {
 	uint index = Rand() % v.size();
 	T item = v[index];
@@ -251,6 +251,12 @@ inline T RandomItem(std::initializer_list<T> cont)
 	auto it = cont.begin();
 	std::advance(it, index);
 	return *it;
+}
+
+template<typename It>
+inline void Shuffle(It begin, It end)
+{
+	std::shuffle(begin, end, internal::rng);
 }
 
 template<typename T>
@@ -290,6 +296,29 @@ private:
 };
 #endif
 
+namespace internal
+{
+#define CALL_IF_EXISTS(Name) \
+	template<typename T> \
+	struct Has##Name##Method \
+	{ \
+		template<typename U, void(U::*)()> struct SFINAE {}; \
+		template<typename U> static char Test(SFINAE<U, &U::Name>*); \
+		template<typename U> static int Test(...); \
+		static const bool Has = sizeof(Test<T>(0)) == sizeof(char); \
+	}; \
+	template<typename T> \
+	void Call##Name(T* t, std::true_type) { t->Name(); } \
+	template<typename T> \
+	void Call##Name(T* t, std::false_type) {} \
+	template<typename T> \
+	void Call##Name(T* t) { Call##Name(t, std::integral_constant<bool, Has##Name##Method<T>::Has>()); }
+
+	CALL_IF_EXISTS(OnGet);
+	CALL_IF_EXISTS(OnFree);
+#undef CALL_IF_EXISTS
+}
+
 template<typename T>
 struct ObjectPool
 {
@@ -304,22 +333,110 @@ struct ObjectPool
 
 	T* Get()
 	{
-		T* t;
+		T* e;
 		if(pool.empty())
-			t = new T;
+			e = new T;
 		else
 		{
-			t = pool.back();
+			e = pool.back();
 			pool.pop_back();
 		}
-		__if_exists(T::OnGet)
-		{
-			t->OnGet();
-		}
+		internal::CallOnGet(e);
 #ifdef CHECK_POOL_LEAKS
-		ObjectPoolLeakManager::instance.Register(t);
+		ObjectPoolLeakManager::instance.Register(e);
 #endif
-		return t;
+		return e;
+	}
+
+	void Free(T* e)
+	{
+		assert(e && !destroyed);
+#ifdef CHECK_POOL_LEAKS
+		VerifyElement(e);
+		ObjectPoolLeakManager::instance.Unregister(e);
+#endif
+		internal::CallOnFree(e);
+		pool.push_back(e);
+	}
+
+	void Free(vector<T*>& elems)
+	{
+		assert(!destroyed);
+		if(elems.empty())
+			return;
+
+#ifdef CHECK_POOL_LEAKS
+		CheckDuplicates(elems);
+#endif
+		for(T* e : elems)
+		{
+			assert(e);
+			internal::CallOnFree(e);
+#ifdef CHECK_POOL_LEAKS
+			VerifyElement(e);
+			ObjectPoolLeakManager::instance.Unregister(e);
+#endif
+		}
+
+		pool.insert(pool.end(), elems.begin(), elems.end());
+		elems.clear();
+	}
+
+	void SafeFree(T* e)
+	{
+		if(!destroyed)
+			Free(e);
+		else
+		{
+			assert(e);
+			internal::CallOnFree(e);
+#ifdef CHECK_POOL_LEAKS
+			ObjectPoolLeakManager::instance.Unregister(e);
+#endif
+			delete e;
+		}
+	}
+
+	void SafeFree(vector<T*>& elems)
+	{
+#ifdef CHECK_POOL_LEAKS
+		CheckDuplicates(elems);
+#endif
+		if(!destroyed)
+		{
+			for(T* e : elems)
+			{
+				if(e)
+				{
+					internal::CallOnFree(e);
+#ifdef CHECK_POOL_LEAKS
+					VerifyElement(e);
+					ObjectPoolLeakManager::instance.Unregister(e);
+#endif
+					pool.push_back(e);
+				}
+			}
+		}
+		else
+		{
+			for(T* e : elems)
+			{
+				if(e)
+				{
+					internal::CallOnFree(e);
+#ifdef CHECK_POOL_LEAKS
+					ObjectPoolLeakManager::instance.Unregister(e);
+#endif
+					delete e;
+				}
+			}
+		}
+		elems.clear();
+	}
+
+	void Cleanup()
+	{
+		DeleteElements(pool);
 	}
 
 private:
@@ -341,117 +458,6 @@ private:
 		}
 	}
 
-public:
-	void Free(T* e)
-	{
-		assert(e && !destroyed);
-#ifdef CHECK_POOL_LEAKS
-		VerifyElement(e);
-		ObjectPoolLeakManager::instance.Unregister(e);
-#endif
-		__if_exists(T::OnFree)
-		{
-			e->OnFree();
-		}
-		pool.push_back(e);
-	}
-
-	void Free(vector<T*>& elems)
-	{
-		assert(!destroyed);
-		if(elems.empty())
-			return;
-
-		__if_exists(T::OnFree)
-		{
-			for(T* e : elems)
-			{
-				assert(e);
-				e->OnFree();
-			}
-		}
-
-#ifdef CHECK_POOL_LEAKS
-		CheckDuplicates(elems);
-		for(T* e : elems)
-		{
-			assert(e);
-			VerifyElement(e);
-			ObjectPoolLeakManager::instance.Unregister(e);
-		}
-#endif
-
-		pool.insert(pool.end(), elems.begin(), elems.end());
-		elems.clear();
-	}
-
-	void SafeFree(T* e)
-	{
-		if(!destroyed)
-			Free(e);
-		else
-		{
-			assert(e);
-			__if_exists(T::OnFree)
-			{
-				e->OnFree();
-#ifdef CHECK_POOL_LEAKS
-				ObjectPoolLeakManager::instance.Unregister(e);
-#endif
-			}
-			delete e;
-		}
-	}
-
-	void SafeFree(vector<T*>& elems)
-	{
-#ifdef CHECK_POOL_LEAKS
-		CheckDuplicates(elems);
-#endif
-		if(!destroyed)
-		{
-			for(T* e : elems)
-			{
-				if(e)
-				{
-#ifdef CHECK_POOL_LEAKS
-					VerifyElement(e);
-					ObjectPoolLeakManager::instance.Unregister(e);
-#endif
-					__if_exists(T::OnFree)
-					{
-						e->OnFree();
-					}
-					pool.push_back(e);
-				}
-			}
-		}
-		else
-		{
-			for(T* e : elems)
-			{
-				if(e)
-				{
-					__if_exists(T::OnFree)
-					{
-						e->OnFree();
-					}
-#ifdef CHECK_POOL_LEAKS
-					ObjectPoolLeakManager::instance.Unregister(e);
-#endif
-					delete e;
-				}
-			}
-		}
-		elems.clear();
-	}
-
-	void Cleanup()
-	{
-		DeleteElements(pool);
-	}
-
-private:
 	vector<T*> pool;
 	bool destroyed;
 };
@@ -755,7 +761,7 @@ struct LocalVector
 
 	void Shuffle()
 	{
-		std::random_shuffle(v->begin(), v->end(), MyRand);
+		::Shuffle(v->begin(), v->end());
 	}
 
 	Iterator begin()
@@ -945,6 +951,22 @@ inline void LoopAndRemove(std::map<Key, Value>& items, Action action)
 }
 
 //-----------------------------------------------------------------------------
+// Loop over items and delete elements that returned true
+template<typename T, typename Pred>
+inline void DeleteElements(vector<T>& items, Pred pred)
+{
+	items.erase(std::remove_if(items.begin(), items.end(), [&](T item)
+	{
+		if(pred(item))
+		{
+			delete item;
+			return true;
+		}
+		return false;
+	}), items.end());
+}
+
+//-----------------------------------------------------------------------------
 // Return random weighted item
 template<typename T>
 struct WeightPair
@@ -970,6 +992,25 @@ inline T& RandomItemWeight(vector<WeightPair<T>>& items, int max_weight)
 	// if it gets here max_count is wrong, return random item
 	return RandomItem(items).item;
 }
+
+template<typename T>
+struct WeightContainer
+{
+	WeightContainer() : total(0) {}
+	void Add(T& item, int weight)
+	{
+		assert(weight >= 1);
+		items.push_back(WeightPair<T>(item, weight));
+		total += weight;
+	}
+	T& GetRandom()
+	{
+		return RandomItemWeight(items, total);
+	}
+private:
+	vector<WeightPair<T>> items;
+	int total;
+};
 
 //-----------------------------------------------------------------------------
 // Like LocalVector but can store any data
@@ -1407,26 +1448,33 @@ struct PointerVector
 class Buffer : public ObjectPoolProxy<Buffer>
 {
 public:
-	void* At(uint offset)
+	void Append(void* ptr, uint size)
 	{
-		return data.data() + offset;
+		if(size == 0)
+			return;
+		uint offset = data.size();
+		data.resize(offset + size);
+		memcpy(data.data() + offset, ptr, size);
 	}
-	void* Data()
+	cstring AsString()
 	{
-		return data.data();
+		if(data.size() != 0u)
+		{
+			if(data.back() == 0)
+				return (cstring)data.data();
+		}
+		data.push_back(0);
+		return (cstring)data.data();
 	}
+	void* At(uint offset) { return data.data() + offset; }
+	void Clear() { data.clear(); }
+	void* Data() { return data.data(); }
 	// decompress buffer to new buffer and return it, old one is freed
 #ifndef COMMON_ONLY
 	Buffer* Decompress(uint real_size);
 #endif
-	void Resize(uint size)
-	{
-		data.resize(size);
-	}
-	uint Size() const
-	{
-		return data.size();
-	}
+	void Resize(uint size) { data.resize(size); }
+	uint Size() const { return data.size(); }
 
 private:
 	vector<byte> data;

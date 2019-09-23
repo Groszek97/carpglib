@@ -16,7 +16,6 @@ struct Profiler::Entry : ObjectPoolProxy<Profiler::Entry>
 			child->SafeFree();
 		e.clear();
 	}
-
 	void UpdatePercent(int64 total);
 	void Merge(Entry* e2);
 };
