@@ -89,6 +89,7 @@
       <SubSystem>Windows</SubSystem>
       <AdditionalLibraryDirectories>..\external\Visual Leak Detector\lib\Win32;..\lib;..\external\DirectX\Lib\x86;..\external\FMod\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>carpglib_debug.lib;d3d9.lib;d3dx9d.lib;dbghelp.lib;fmod_vc.lib;BulletCollision_debug.lib;LinearMath_debug.lib;zlib_debug.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">

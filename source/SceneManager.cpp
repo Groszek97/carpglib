@@ -19,12 +19,35 @@ struct LightData
 	Vec4 color;
 };
 
+SceneManager::SceneManager() : active_scene(nullptr), camera(nullptr), shader(nullptr), use_fog(true), use_lighting(true), use_normal_map(true),
+use_specular_map(true)
+{
+}
+
+SceneManager::~SceneManager()
+{
+	DeleteElements(scenes);
+	delete camera;
+}
+
+void SceneManager::Init()
+{
+	shader = new SuperShader;
+	app::render->RegisterShader(shader);
+}
+
 void SceneManager::Draw()
 {
 	IDirect3DDevice9* device = app::render->GetDevice();
 	if(!active_scene)
 	{
 		V(device->Clear(0, nullptr, D3DCLEAR_ZBUFFER | D3DCLEAR_TARGET | D3DCLEAR_STENCIL, Color::Black, 1.f, 0));
+		return;
+	}
+
+	if (!camera)
+	{
+		V(device->Clear(0, nullptr, D3DCLEAR_ZBUFFER | D3DCLEAR_TARGET | D3DCLEAR_STENCIL, active_scene->clear_color, 1.f, 0));
 		return;
 	}
 
@@ -116,7 +139,7 @@ void SceneManager::Draw()
 			SceneNode* node = *it;
 			Matrix mat_world;
 			if(node->billboard)
-				mat_world = Matrix::CreateLookAt(node->pos, camera->from).Inverse() * camera->mat_view_proj;
+				mat_world = Matrix::CreateLookAt(node->pos, camera->from).Inverse() * mat_view_proj;
 			else
 				mat_world = Matrix::Transform(node->pos, node->rot, node->scale);
 			Matrix mat_combined = mat_world * mat_view_proj;
@@ -221,4 +244,23 @@ void SceneManager::ProcessNodes()
 		++index;
 	}
 	groups.back().end = index - 1;
+}
+
+void SceneManager::SetActiveScene(Scene* scene)
+{
+	if (scene)
+	{
+		bool ok = false;
+		for (Scene* s : scenes)
+		{
+			if (s == scene)
+			{
+				ok = true;
+				break;
+			}
+		}
+		if (!ok)
+			AddScene(scene);
+	}
+	active_scene = scene;
 }

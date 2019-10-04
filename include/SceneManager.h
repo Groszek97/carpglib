@@ -3,9 +3,18 @@
 class SceneManager
 {
 public:
-	SceneManager() : active_scene(nullptr), use_fog(true), use_lighting(true), use_normal_map(true), use_specular_map(true) {}
+	SceneManager();
+	~SceneManager();
 
+	void Init();
 	void Draw();
+	void AddScene(Scene* scene)
+	{
+		assert(scene);
+		scenes.push_back(scene);
+	}
+	void SetActiveScene(Scene* scene);
+	void SetCamera(Camera* camera) { this->camera = camera; }
 
 	bool use_fog, use_lighting, use_normal_map, use_specular_map;
 
@@ -18,6 +27,7 @@ private:
 	void ProcessNodes();
 
 	Camera* camera;
+	vector<Scene*> scenes;
 	Scene* active_scene;
 	SuperShader* shader;
 	vector<SceneNode*> nodes;

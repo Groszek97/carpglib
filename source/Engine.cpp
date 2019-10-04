@@ -595,6 +595,7 @@ void Engine::Init()
 	phy_world = CustomCollisionWorld::Init();
 	app::res_mgr->Init();
 	app::gui->Init();
+	app::scene_mgr->Init();
 	initialized = true;
 }
 

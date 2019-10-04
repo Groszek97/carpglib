@@ -24,7 +24,7 @@ class SuperShader : public ShaderHandler
 	};
 
 public:
-	SuperShader(Render* render);
+	SuperShader();
 	~SuperShader();
 	void OnInit() override;
 	void OnReset() override;
@@ -39,7 +39,6 @@ public:
 		h_specular_color, h_specular_intensity, h_specular_hardness, h_camera_pos, h_tex_diffuse, h_tex_normal, h_tex_specular;
 
 private:
-	Render* render;
 	string code;
 	FileTime edit_time;
 	ID3DXEffectPool* pool;
