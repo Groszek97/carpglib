@@ -26,6 +26,7 @@ public:
 		node->pos = Vec3::Zero;
 		node->rot = Vec3::Zero;
 		node->scale = Vec3::One;
+		node->tint = Vec4::One;
 		node->SetMesh(app::res_mgr->Load<Mesh>("skrzynka.qmsh"));
 		scene->Add(node);
 		return true;
@@ -35,6 +36,7 @@ public:
 	{
 		if (app::input->Pressed(Key::Escape) || app::input->Shortcut(ShortcutKey::KEY_ALT, Key::F4))
 			app::engine->Shutdown();
+		node->rot.y += 3.f * dt;
 	}
 
 private:
