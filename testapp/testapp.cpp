@@ -47,7 +47,10 @@ public:
 		scene->use_fog = true;
 		scene->fog_color = Color(0xFF0094FF);
 		scene->fog_range = Vec2(7.5f, 15.f);
+		scene->use_dir_light = false;
+		scene->use_point_light = false;
 		app::scene_mgr->use_fog = false;
+		app::scene_mgr->use_lighting = true;
 
 		SceneNode* floor = SceneNode::Get();
 		floor->pos = Vec3::Zero;
@@ -90,15 +93,36 @@ public:
 
 		if(app::input->Pressed(Key::F1))
 			app::scene_mgr->use_fog = !app::scene_mgr->use_fog;
+		if(app::input->Pressed(Key::F2))
+		{
+			scene->use_dir_light = !scene->use_dir_light;
+			scene->use_point_light = false;
+		}
+		if(app::input->Pressed(Key::F3))
+		{
+			scene->use_point_light = !scene->use_point_light;
+			scene->use_dir_light = false;
+		}
 
 		if(app::input->Shortcut(ShortcutKey::KEY_SHIFT, Key::R))
 			app::render->ReloadShaders();
+
+		light_dir += dt;
+		scene->light_dir = Vec3(sin(light_dir) * 5, 5, cos(light_dir) * 5).Normalized();
 	}
 
 	void Draw(ControlDrawData*) override
 	{
 		Rect r = { 0,0,500,500 };
-		gui->DrawText(font, Format("[F1] Fog - %s\nShift+R - reload shaders", app::scene_mgr->use_fog ? "ON" : "OFF"), 0, Color::Black, r);
+		gui->DrawText(font, Format(
+			"[F1] Fog - %s\n"
+			"[F2] Dir light - %s\n"
+			"[F3] Point light - %s\n"
+			"Shift+R - reload shaders",
+			app::scene_mgr->use_fog ? "ON" : "OFF",
+			scene->use_dir_light ? "ON" : "OFF",
+			scene->use_point_light ? "ON" : "OFF"),
+			0, Color::Black, r);
 	}
 
 private:
@@ -108,6 +132,7 @@ private:
 	SceneNode* node_human;
 	FpsCamera* camera;
 	Font* font;
+	float light_dir;
 };
 
 int AppEntry()
