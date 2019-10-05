@@ -229,6 +229,7 @@ float4 ps_mesh(in MESH_OUTPUT In) : COLOR0
 	
 	tex = float4(saturate((tex.xyz * saturate(ambient_color + diffuse) ) + specular_color * specular), tex.w);
 	
+	
 #ifdef FOG
 	return float4(lerp(tex.xyz, fog_color, fog), tex.w);
 #else

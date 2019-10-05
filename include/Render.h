@@ -46,6 +46,7 @@ public:
 	void RegisterShader(ShaderHandler* shader);
 	ID3DXEffect* CompileShader(cstring name);
 	ID3DXEffect* CompileShader(CompileShaderParams& params);
+	void ReloadShaders();
 	TEX CreateTexture(const Int2& size);
 	RenderTarget* CreateRenderTarget(const Int2& size);
 	Texture* CopyToTexture(RenderTarget* target);

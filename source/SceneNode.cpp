@@ -26,7 +26,7 @@ void SceneNode::SetMesh(MeshInstance* mesh_inst)
 void SceneNode::ApplyMeshFlags()
 {
 	flags = 0;
-	if(IsSet(mesh->head.flags, Mesh::F_ANIMATED))
+	if(IsSet(mesh->head.flags, Mesh::F_ANIMATED) && mesh_inst)
 		flags |= ANIMATED;
 	if(IsSet(mesh->head.flags, Mesh::F_TANGENTS))
 		flags |= HAVE_BINORMALS;

@@ -8,6 +8,7 @@ public:
 
 	void Init();
 	void Draw();
+	void Update(float dt);
 	void AddScene(Scene* scene)
 	{
 		assert(scene);

@@ -3,7 +3,7 @@
 #include "Scene.h"
 #include "SceneNode.h"
 #include "Camera.h"
-#include "Mesh.h"
+#include "MeshInstance.h"
 
 Scene::~Scene()
 {
@@ -12,7 +12,11 @@ Scene::~Scene()
 
 void Scene::Update(float dt)
 {
-
+	for(SceneNode* node : nodes)
+	{
+		if(node->mesh_inst)
+			node->mesh_inst->Update(dt);
+	}
 }
 
 void Scene::ListVisibleNodes(Camera& camera, vector<SceneNode*>& visible_nodes)

@@ -21,6 +21,7 @@
   <ItemGroup>
     <ClInclude Include="include\Algorithm.h" />
     <ClInclude Include="include\App.h" />
+    <ClInclude Include="include\AppEntry.h" />
     <ClInclude Include="include\Base64.h" />
     <ClInclude Include="include\Button.h" />
     <ClInclude Include="include\Camera.h" />

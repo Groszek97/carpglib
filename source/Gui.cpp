@@ -16,7 +16,7 @@ Gui* app::gui;
 
 //=================================================================================================
 Gui::Gui() : tFontTarget(nullptr), vb(nullptr), vb2(nullptr), cursor_mode(CURSOR_NORMAL), vb2_locked(false), focused_ctrl(nullptr), tPixel(nullptr),
-master_layout(nullptr), layout(nullptr), overlay(nullptr), grayscale(false), vertex_decl(nullptr), effect(nullptr)
+master_layout(nullptr), layout(nullptr), overlay(nullptr), grayscale(false), vertex_decl(nullptr), effect(nullptr), layer(nullptr), dialog_layer(nullptr)
 {
 }
 
@@ -26,6 +26,8 @@ Gui::~Gui()
 	OnRelease();
 	DeleteElements(created_dialogs);
 	SafeRelease(tPixel);
+	delete layer;
+	delete dialog_layer;
 	delete master_layout;
 }
 

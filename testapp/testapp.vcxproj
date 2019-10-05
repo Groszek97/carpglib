@@ -137,7 +137,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="FpsCamera.cpp" />
     <ClCompile Include="testapp.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="FpsCamera.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

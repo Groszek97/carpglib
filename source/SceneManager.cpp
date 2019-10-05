@@ -76,7 +76,7 @@ void SceneManager::Draw()
 		V(effect->SetVector(shader->h_fog_color, (D3DXVECTOR4*)&value));
 
 		value = Vec4(scene->fog_range.x, scene->fog_range.y, scene->fog_range.y - scene->fog_range.x, 0.f);
-		V(effect->SetVector(shader->h_fog_color, (D3DXVECTOR4*)&value));
+		V(effect->SetVector(shader->h_fog_params, (D3DXVECTOR4*)&value));
 	}
 	else
 		fog = false;
@@ -244,6 +244,12 @@ void SceneManager::ProcessNodes()
 		++index;
 	}
 	groups.back().end = index - 1;
+}
+
+void SceneManager::Update(float dt)
+{
+	for(Scene* scene : scenes)
+		scene->Update(dt);
 }
 
 void SceneManager::SetActiveScene(Scene* scene)

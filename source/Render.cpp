@@ -788,6 +788,16 @@ ID3DXEffect* Render::CompileShader(CompileShaderParams& params)
 }
 
 //=================================================================================================
+void Render::ReloadShaders()
+{
+	for(ShaderHandler* shader : shaders)
+	{
+		shader->OnRelease();
+		shader->OnInit();
+	}
+}
+
+//=================================================================================================
 TEX Render::CreateTexture(const Int2& size)
 {
 	TEX tex;
