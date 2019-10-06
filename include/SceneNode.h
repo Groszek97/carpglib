@@ -18,11 +18,12 @@ struct SceneNode : public ObjectPoolProxy<SceneNode>
 	void SetMesh(MeshInstance* mesh_inst);
 	void AddChild(SceneNode* node, Mesh::Point* point = nullptr, bool use_parent_mesh = false);
 
-//private:
+protected:
 	void ApplyMeshFlags();
 	void OnGet();
 	void OnFree();
 
+public:
 	SceneNode* parent;
 	vector<SceneNode*> childs, lights;
 	Mesh* mesh;
