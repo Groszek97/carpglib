@@ -138,23 +138,6 @@ void Mesh::Load(StreamReader& stream, IDirect3DDevice9* device)
 			throw Format("Failed to read submesh %u.", i);
 	}
 
-	if(IsSet(head.flags, F_NORMAL_MAP))
-	{
-		for(Submesh& sub : subs)
-		{
-			if(!sub.tex_normal)
-				throw "Normal map submesh missing textures.";
-		}
-	}
-	if(IsSet(head.flags, F_SPECULAR_MAP))
-	{
-		for(Submesh& sub : subs)
-		{
-			if(!sub.tex_specular)
-				throw "Specular map submesh missing textures.";
-		}
-	}
-
 	// animation data
 	if(IsSet(head.flags, F_ANIMATED) && !IsSet(head.flags, F_STATIC))
 	{
@@ -524,6 +507,18 @@ Mesh::Point* Mesh::GetPoint(cstring name)
 	}
 
 	return nullptr;
+}
+
+//=================================================================================================
+bool Mesh::HavePoint(Point* point)
+{
+	assert(point);
+	for(Point& pt : attach_points)
+	{
+		if(&pt == point)
+			return true;
+	}
+	return false;
 }
 
 //=================================================================================================

@@ -49,8 +49,11 @@ public:
 		scene->fog_range = Vec2(7.5f, 15.f);
 		scene->use_dir_light = false;
 		scene->use_point_light = false;
+		scene->ambient_color = Color(100, 100, 100, 255);
 		app::scene_mgr->use_fog = false;
 		app::scene_mgr->use_lighting = true;
+		app::scene_mgr->use_specular_map = false;
+		app::scene_mgr->use_normal_map = false;
 
 		SceneNode* floor = SceneNode::Get();
 		floor->pos = Vec3::Zero;
@@ -73,9 +76,58 @@ public:
 		node_human->rot = Vec3::Zero;
 		node_human->scale = Vec3::One;
 		node_human->tint = Vec4::One;
+		node_human->subs = Bit(1) | Bit(2) | Bit(3);
 		node_human->SetMesh(new MeshInstance(app::res_mgr->Load<Mesh>("human.qmsh")));
 		node_human->mesh_inst->Play("idzie", PLAY_NO_BLEND);
 		scene->Add(node_human);
+
+		SceneNode* node = SceneNode::Get();
+		node->pos = Vec3(-1, 0, 0);
+		node->rot = Vec3::Zero;
+		node->scale = Vec3::One;
+		node->tint = Vec4::One;
+		node->SetMesh(app::res_mgr->Load<Mesh>("tarcza_strzelnicza.qmsh"));
+		scene->Add(node);
+
+		node = SceneNode::Get();
+		node->pos = Vec3(-0.5, 0, 1);
+		node->rot = Vec3::Zero;
+		node->scale = Vec3::One;
+		node->tint = Vec4::One;
+		node->SetMesh(app::res_mgr->Load<Mesh>("intensiv.qmsh"));
+		scene->Add(node);
+
+		node = SceneNode::Get();
+		node->pos = Vec3::Zero;
+		node->rot = Vec3::Zero;
+		node->scale = Vec3::One;
+		node->tint = Vec4::One;
+		node->SetMesh(app::res_mgr->Load<Mesh>("rapier.qmsh"));
+		node_human->AddChild(node, node_human->mesh->GetPoint("bron"));
+
+		node = SceneNode::Get();
+		node->pos = Vec3::Zero;
+		node->rot = Vec3::Zero;
+		node->scale = Vec3::One;
+		node->tint = Vec4::One;
+		node->SetMesh(app::res_mgr->Load<Mesh>("chainmail.qmsh"));
+		node_human->AddChild(node, nullptr, true);
+
+		light = SceneNode::Get();
+		light->is_light = true;
+		light->pos = Vec3(2, 1, 0);
+		light->rot = Vec3::Zero;
+		light->scale.x = 5.f;
+		light->tint = Vec4::One;
+		scene->Add(light);
+
+		light2 = SceneNode::Get();
+		light2->is_light = true;
+		light2->pos = Vec3(2, 1, 0);
+		light2->rot = Vec3::Zero;
+		light2->scale.x = 8.f;
+		light2->tint = Vec4(1.f, 0.f, 0.f, 1.f);
+		scene->Add(light2);
 
 		font = gui->CreateFont("Arial", 14, 600, 512);
 		gui->Add(this);
@@ -87,9 +139,6 @@ public:
 	{
 		if (app::input->Pressed(Key::Escape) || app::input->Shortcut(ShortcutKey::KEY_ALT, Key::F4))
 			app::engine->Shutdown();
-		node_box->rot.y += 3.f * dt;
-		app::scene_mgr->Update(dt);
-		camera->Update(dt);
 
 		if(app::input->Pressed(Key::F1))
 			app::scene_mgr->use_fog = !app::scene_mgr->use_fog;
@@ -103,12 +152,27 @@ public:
 			scene->use_point_light = !scene->use_point_light;
 			scene->use_dir_light = false;
 		}
+		if(app::input->Pressed(Key::F4))
+			app::scene_mgr->use_specular_map = !app::scene_mgr->use_specular_map;
+		if(app::input->Pressed(Key::F5))
+			app::scene_mgr->use_normal_map = !app::scene_mgr->use_normal_map;
 
 		if(app::input->Shortcut(ShortcutKey::KEY_SHIFT, Key::R))
 			app::render->ReloadShaders();
 
-		light_dir += dt;
-		scene->light_dir = Vec3(sin(light_dir) * 5, 5, cos(light_dir) * 5).Normalized();
+		camera->Update(dt);
+
+		if(!app::input->Down(Key::Spacebar))
+		{
+			node_box->rot.y += 3.f * dt;
+			app::scene_mgr->Update(dt);
+
+			light_dir += dt;
+			scene->light_dir = Vec3(sin(light_dir) * 5, 5, cos(light_dir) * 5).Normalized();
+
+			light->pos = Vec3(sin(light_dir) * 2, 0.5f, cos(light_dir) * 2);
+			light2->pos = Vec3(sin(light_dir + PI / 2) * 3 + 2, 0.5f, cos(light_dir + PI / 2) * 3 + 1);
+		}
 	}
 
 	void Draw(ControlDrawData*) override
@@ -118,10 +182,14 @@ public:
 			"[F1] Fog - %s\n"
 			"[F2] Dir light - %s\n"
 			"[F3] Point light - %s\n"
+			"[F4] Specular map - %s\n"
+			"[F5] Normal map - %s\n"
 			"Shift+R - reload shaders",
 			app::scene_mgr->use_fog ? "ON" : "OFF",
 			scene->use_dir_light ? "ON" : "OFF",
-			scene->use_point_light ? "ON" : "OFF"),
+			scene->use_point_light ? "ON" : "OFF",
+			app::scene_mgr->use_specular_map ? "ON" : "OFF",
+			app::scene_mgr->use_normal_map ? "ON" : "OFF"),
 			0, Color::Black, r);
 	}
 
@@ -130,6 +198,8 @@ private:
 	Scene* scene;
 	SceneNode* node_box;
 	SceneNode* node_human;
+	SceneNode* light;
+	SceneNode* light2;
 	FpsCamera* camera;
 	Font* font;
 	float light_dir;

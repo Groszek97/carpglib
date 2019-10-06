@@ -157,6 +157,7 @@ struct Mesh : public Resource
 	Animation* GetAnimation(cstring name);
 	Bone* GetBone(cstring name);
 	Point* GetPoint(cstring name);
+	bool HavePoint(Point* point);
 	TEX GetTexture(uint idx) const
 	{
 		assert(idx < head.n_subs && subs[idx].tex && subs[idx].tex->tex);

@@ -33,4 +33,5 @@ private:
 	SuperShader* shader;
 	vector<SceneNode*> nodes;
 	vector<SceneNodeGroup> groups;
+	TEX tex_specular, tex_normal;
 };

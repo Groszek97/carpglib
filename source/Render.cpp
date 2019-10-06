@@ -798,10 +798,15 @@ void Render::ReloadShaders()
 }
 
 //=================================================================================================
-TEX Render::CreateTexture(const Int2& size)
+TEX Render::CreateTexture(const Int2& size, Color* fill)
 {
 	TEX tex;
 	V(device->CreateTexture(size.x, size.y, 0, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &tex, nullptr));
+	if(fill)
+	{
+		TextureLock lock(tex);
+		lock.Fill(*fill);
+	}
 	return tex;
 }
 

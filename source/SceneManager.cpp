@@ -34,6 +34,8 @@ void SceneManager::Init()
 {
 	shader = new SuperShader;
 	app::render->RegisterShader(shader);
+	tex_specular = app::render->CreateTexture(Int2(1, 1), &Color::None);
+	tex_normal = app::render->CreateTexture(Int2(1, 1), &Color(128, 128, 255));
 }
 
 void SceneManager::Draw()
@@ -52,10 +54,6 @@ void SceneManager::Draw()
 	}
 
 	Scene* scene = active_scene;
-
-	nodes.clear();
-	scene->ListVisibleNodes(*camera, nodes);
-	ProcessNodes();
 
 	V(device->BeginScene());
 	V(device->Clear(0, nullptr, D3DCLEAR_ZBUFFER | D3DCLEAR_TARGET | D3DCLEAR_STENCIL, scene->clear_color, 1.f, 0));
@@ -110,6 +108,10 @@ void SceneManager::Draw()
 		dir_light = false;
 	}
 
+	nodes.clear();
+	scene->ListVisibleNodes(*camera, nodes, point_light);
+	ProcessNodes();
+
 	const Matrix& mat_view_proj = camera->GetViewProj();
 	Matrix mat_world;
 	Mesh* mesh = nullptr;
@@ -137,12 +139,7 @@ void SceneManager::Draw()
 		for(auto it = nodes.begin() + group.start, end = nodes.begin() + group.end + 1; it != end; ++it)
 		{
 			SceneNode* node = *it;
-			Matrix mat_world;
-			if(node->billboard)
-				mat_world = Matrix::CreateLookAt(node->pos, camera->from).Inverse() * mat_view_proj;
-			else
-				mat_world = Matrix::Transform(node->pos, node->rot, node->scale);
-			Matrix mat_combined = mat_world * mat_view_proj;
+			Matrix mat_combined = node->mat * mat_view_proj;
 
 			// set mesh
 			if(node->mesh != mesh)
@@ -154,7 +151,7 @@ void SceneManager::Draw()
 			}
 
 			V(effect->SetMatrix(shader->h_mat_combined, (D3DXMATRIX*)&mat_combined));
-			V(effect->SetMatrix(shader->h_mat_world, (D3DXMATRIX*)&mat_world));
+			V(effect->SetMatrix(shader->h_mat_world, (D3DXMATRIX*)&node->mat));
 			V(effect->SetVector(shader->h_tint, (D3DXVECTOR4*)&node->tint));
 			if(animated)
 			{
@@ -182,9 +179,9 @@ void SceneManager::Draw()
 				// set texture
 				V(effect->SetTexture(shader->h_tex_diffuse, mesh->GetTexture(i)));
 				if(normal_map)
-					V(effect->SetTexture(shader->h_tex_normal, sub.tex_normal->tex));
+					V(effect->SetTexture(shader->h_tex_normal, sub.tex_normal ? sub.tex_normal->tex : tex_normal));
 				if(specular_map)
-					V(effect->SetTexture(shader->h_tex_specular, sub.tex_specular->tex));
+					V(effect->SetTexture(shader->h_tex_specular, sub.tex_specular ? sub.tex_specular->tex : tex_specular));
 
 				// lighting
 				V(effect->SetVector(shader->h_specular_color, (D3DXVECTOR4*)&sub.specular_color));

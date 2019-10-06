@@ -47,7 +47,7 @@ public:
 	ID3DXEffect* CompileShader(cstring name);
 	ID3DXEffect* CompileShader(CompileShaderParams& params);
 	void ReloadShaders();
-	TEX CreateTexture(const Int2& size);
+	TEX CreateTexture(const Int2& size, Color* fill = nullptr);
 	RenderTarget* CreateRenderTarget(const Int2& size);
 	Texture* CopyToTexture(RenderTarget* target);
 	bool IsLostDevice() const { return lost_device; }

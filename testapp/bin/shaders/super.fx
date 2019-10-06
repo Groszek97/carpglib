@@ -184,11 +184,12 @@ float4 ps_mesh(in MESH_OUTPUT In) : COLOR0
 	float3 normal = In.normal;
 #endif
 	
-	float specularInt =
+	float spec_int;
 #ifdef SPECULAR_MAP
-		tex2D(sampler_specular, In.tex);
+	float4 spec_tex = tex2D(sampler_specular, In.tex);
+	spec_int = spec_tex.r + (1.f - spec_tex.a) * specular_intensity;
 #else
-		specular_intensity;
+	spec_int = specular_intensity;
 #endif
 	float specular = 0;
 	
@@ -205,7 +206,7 @@ float4 ps_mesh(in MESH_OUTPUT In) : COLOR0
 		if(light > 0)
 		{
 			float3 reflection = normalize(light*2*normal - light_vec);
-			specular += pow(saturate(dot(reflection, normalize(In.view_dir))), specular_hardness) * specularInt * falloff;
+			specular += pow(saturate(dot(reflection, normalize(In.view_dir))), specular_hardness) * spec_int * falloff;
 		}							
 		diffuse += light * lights[i].color;
 		light_intensity += light;
@@ -219,7 +220,7 @@ float4 ps_mesh(in MESH_OUTPUT In) : COLOR0
 	if(light_intensity > 0)
 	{
 		float3 reflection = normalize(light_intensity*2*normal - light_dir);
-		specular = pow(saturate(dot(reflection, normalize(In.view_dir))), specular_hardness) * specularInt;
+		specular = pow(saturate(dot(reflection, normalize(In.view_dir))), specular_hardness) * spec_int;
 	}
 #else
 	// brak oswietlenia
