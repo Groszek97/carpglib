@@ -1496,15 +1496,6 @@ void Gui::DrawSprite(Texture* t, const Int2& pos, Color color, const Rect* clipp
 }
 
 //=================================================================================================
-void Gui::OnClean()
-{
-	OnReset();
-
-	delete layer;
-	delete dialog_layer;
-}
-
-//=================================================================================================
 void Gui::CreateVertexBuffer()
 {
 	if(device)

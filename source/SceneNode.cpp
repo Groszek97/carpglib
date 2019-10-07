@@ -62,6 +62,10 @@ void SceneNode::OnGet()
 	is_light = false;
 	billboard = false;
 	subs = -1;
+	pos = Vec3::Zero;
+	rot = Vec3::Zero;
+	scale = Vec3::One;
+	tint = Vec4::One;
 }
 
 void SceneNode::OnFree()

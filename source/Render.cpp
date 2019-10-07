@@ -117,7 +117,7 @@ void Render::Init()
 	hr = d3d->CheckDepthStencilMatch(used_adapter, D3DDEVTYPE_HAL, DISPLAY_FORMAT, D3DFMT_A8R8G8B8, ZBUFFER_FORMAT);
 	if(FAILED(hr))
 		throw Format("Render: Unsupported render target D3DFMT_A8R8G8B8 with display %s and depth buffer %s! (%d)",
-		STRING(DISPLAY_FORMAT), STRING(BACKBUFFER_FORMAT), hr);
+			STRING(DISPLAY_FORMAT), STRING(BACKBUFFER_FORMAT), hr);
 
 	// check multisampling
 	DWORD levels, levels2;

@@ -8,6 +8,7 @@ public:
 
 	void Init();
 	void Draw();
+	void Draw(RenderTarget* target, Scene* scene, Camera* camera);
 	void Update(float dt);
 	void AddScene(Scene* scene)
 	{
@@ -25,6 +26,7 @@ private:
 		int flags, start, end;
 	};
 
+	void DrawInternal(Scene* scene, Camera* camera);
 	void ProcessNodes();
 
 	Camera* camera;

@@ -16,6 +16,11 @@ struct SceneNode : public ObjectPoolProxy<SceneNode>
 
 	void SetMesh(Mesh* mesh);
 	void SetMesh(MeshInstance* mesh_inst);
+	void SetLight(float range)
+	{
+		is_light = true;
+		scale.x = range;
+	}
 	void AddChild(SceneNode* node, Mesh::Point* point = nullptr, bool use_parent_mesh = false);
 
 protected:

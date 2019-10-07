@@ -960,14 +960,14 @@ template<typename T, typename Pred>
 inline void DeleteElements(vector<T>& items, Pred pred)
 {
 	items.erase(std::remove_if(items.begin(), items.end(), [&](T item)
-	{
-		if(pred(item))
 		{
-			delete item;
-			return true;
-		}
-		return false;
-	}), items.end());
+			if(pred(item))
+			{
+				delete item;
+				return true;
+			}
+			return false;
+		}), items.end());
 }
 
 //-----------------------------------------------------------------------------

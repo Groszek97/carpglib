@@ -40,29 +40,39 @@ void SceneManager::Init()
 
 void SceneManager::Draw()
 {
+	DrawInternal(active_scene, camera);
+}
+
+void SceneManager::Draw(RenderTarget* target, Scene* scene, Camera* camera)
+{
+	app::render->SetTarget(target);
+	DrawInternal(scene, camera);
+	app::render->SetTarget(nullptr);
+}
+
+void SceneManager::DrawInternal(Scene* scene, Camera* camera)
+{
 	IDirect3DDevice9* device = app::render->GetDevice();
-	if(!active_scene)
+	if(!scene)
 	{
 		V(device->Clear(0, nullptr, D3DCLEAR_ZBUFFER | D3DCLEAR_TARGET | D3DCLEAR_STENCIL, Color::Black, 1.f, 0));
 		return;
 	}
 
-	if (!camera)
+	if(!camera)
 	{
-		V(device->Clear(0, nullptr, D3DCLEAR_ZBUFFER | D3DCLEAR_TARGET | D3DCLEAR_STENCIL, active_scene->clear_color, 1.f, 0));
+		V(device->Clear(0, nullptr, D3DCLEAR_ZBUFFER | D3DCLEAR_TARGET | D3DCLEAR_STENCIL, scene->clear_color, 1.f, 0));
 		return;
 	}
 
-	Scene* scene = active_scene;
-
-	V(device->BeginScene());
 	V(device->Clear(0, nullptr, D3DCLEAR_ZBUFFER | D3DCLEAR_TARGET | D3DCLEAR_STENCIL, scene->clear_color, 1.f, 0));
+	V(device->BeginScene());
 
 	bool fog, point_light, dir_light;
 
 	ID3DXEffect* effect = shader->GetEffect();
 
-	V(effect->SetVector(shader->h_camera_pos, (D3DXVECTOR4*)&camera->from));
+	V(effect->SetVector(shader->h_camera_pos, (D3DXVECTOR4*)& camera->from));
 
 	// apply fog
 	if(scene->use_fog && use_fog)
@@ -71,10 +81,10 @@ void SceneManager::Draw()
 		fog = true;
 
 		Vec4 value = scene->fog_color;
-		V(effect->SetVector(shader->h_fog_color, (D3DXVECTOR4*)&value));
+		V(effect->SetVector(shader->h_fog_color, reinterpret_cast<D3DXVECTOR4*>(&value)));
 
 		value = Vec4(scene->fog_range.x, scene->fog_range.y, scene->fog_range.y - scene->fog_range.x, 0.f);
-		V(effect->SetVector(shader->h_fog_params, (D3DXVECTOR4*)&value));
+		V(effect->SetVector(shader->h_fog_params, reinterpret_cast<D3DXVECTOR4*>(&value)));
 	}
 	else
 		fog = false;
@@ -83,7 +93,7 @@ void SceneManager::Draw()
 	if(use_lighting && (scene->use_point_light || scene->use_dir_light))
 	{
 		Vec4 value = scene->ambient_color;
-		V(effect->SetVector(shader->h_ambient_color, (D3DXVECTOR4*)&value));
+		V(effect->SetVector(shader->h_ambient_color, reinterpret_cast<D3DXVECTOR4*>(&value)));
 
 		if(scene->use_point_light)
 		{
@@ -96,10 +106,10 @@ void SceneManager::Draw()
 			dir_light = true;
 
 			value = scene->light_color;
-			V(effect->SetVector(shader->h_light_color, (D3DXVECTOR4*)&value));
+			V(effect->SetVector(shader->h_light_color, reinterpret_cast<D3DXVECTOR4*>(&value)));
 
 			value = Vec4(scene->light_dir.Normalized(), 1.f);
-			V(effect->SetVector(shader->h_light_dir, (D3DXVECTOR4*)&value));
+			V(effect->SetVector(shader->h_light_dir, reinterpret_cast<D3DXVECTOR4*>(&value)));
 		}
 	}
 	else
@@ -150,9 +160,9 @@ void SceneManager::Draw()
 				V(device->SetIndices(mesh->ib));
 			}
 
-			V(effect->SetMatrix(shader->h_mat_combined, (D3DXMATRIX*)&mat_combined));
-			V(effect->SetMatrix(shader->h_mat_world, (D3DXMATRIX*)&node->mat));
-			V(effect->SetVector(shader->h_tint, (D3DXVECTOR4*)&node->tint));
+			V(effect->SetMatrix(shader->h_mat_combined, reinterpret_cast<D3DXMATRIX*>(&mat_combined)));
+			V(effect->SetMatrix(shader->h_mat_world, reinterpret_cast<D3DXMATRIX*>(&node->mat)));
+			V(effect->SetVector(shader->h_tint, reinterpret_cast<D3DXVECTOR4*>(&node->tint)));
 			if(animated)
 			{
 				MeshInstance& mesh_inst = *node->mesh_inst;
@@ -184,7 +194,7 @@ void SceneManager::Draw()
 					V(effect->SetTexture(shader->h_tex_specular, sub.tex_specular ? sub.tex_specular->tex : tex_specular));
 
 				// lighting
-				V(effect->SetVector(shader->h_specular_color, (D3DXVECTOR4*)&sub.specular_color));
+				V(effect->SetVector(shader->h_specular_color, reinterpret_cast<const D3DXVECTOR4*>(&sub.specular_color)));
 				V(effect->SetFloat(shader->h_specular_intensity, sub.specular_intensity));
 				V(effect->SetFloat(shader->h_specular_hardness, (float)sub.specular_hardness));
 
@@ -220,12 +230,12 @@ void SceneManager::ProcessNodes()
 	}
 
 	std::sort(nodes.begin(), nodes.end(), [](const SceneNode* node1, const SceneNode* node2)
-	{
-		if(node1->tmp_flags != node2->tmp_flags)
-			return node1->tmp_flags > node2->tmp_flags;
-		else
-			return node1->mesh > node2->mesh;
-	});
+		{
+			if(node1->tmp_flags != node2->tmp_flags)
+				return node1->tmp_flags > node2->tmp_flags;
+			else
+				return node1->mesh > node2->mesh;
+		});
 
 	int prev_flags = -1, index = 0;
 	groups.clear();
@@ -251,18 +261,18 @@ void SceneManager::Update(float dt)
 
 void SceneManager::SetActiveScene(Scene* scene)
 {
-	if (scene)
+	if(scene)
 	{
 		bool ok = false;
-		for (Scene* s : scenes)
+		for(Scene* s : scenes)
 		{
-			if (s == scene)
+			if(s == scene)
 			{
 				ok = true;
 				break;
 			}
 		}
-		if (!ok)
+		if(!ok)
 			AddScene(scene);
 	}
 	active_scene = scene;
