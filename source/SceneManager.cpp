@@ -19,7 +19,7 @@ struct LightData
 	Vec4 color;
 };
 
-SceneManager::SceneManager() : active_scene(nullptr), camera(nullptr), shader(nullptr), use_fog(true), use_lighting(true), use_normal_map(true),
+SceneManager::SceneManager() : active_scene(nullptr), active_camera(nullptr), shader(nullptr), use_fog(true), use_lighting(true), use_normal_map(true),
 use_specular_map(true)
 {
 }
@@ -27,7 +27,7 @@ use_specular_map(true)
 SceneManager::~SceneManager()
 {
 	DeleteElements(scenes);
-	delete camera;
+	delete active_camera;
 }
 
 void SceneManager::Init()
@@ -40,7 +40,7 @@ void SceneManager::Init()
 
 void SceneManager::Draw()
 {
-	DrawInternal(active_scene, camera);
+	DrawInternal(active_scene, active_camera);
 }
 
 void SceneManager::Draw(RenderTarget* target, Scene* scene, Camera* camera)
@@ -64,6 +64,11 @@ void SceneManager::DrawInternal(Scene* scene, Camera* camera)
 		V(device->Clear(0, nullptr, D3DCLEAR_ZBUFFER | D3DCLEAR_TARGET | D3DCLEAR_STENCIL, scene->clear_color, 1.f, 0));
 		return;
 	}
+
+	app::render->SetAlphaBlend(false);
+	app::render->SetAlphaTest(false);
+	app::render->SetNoZWrite(false);
+	app::render->SetNoCulling(false);
 
 	V(device->Clear(0, nullptr, D3DCLEAR_ZBUFFER | D3DCLEAR_TARGET | D3DCLEAR_STENCIL, scene->clear_color, 1.f, 0));
 	V(device->BeginScene());
@@ -120,7 +125,7 @@ void SceneManager::DrawInternal(Scene* scene, Camera* camera)
 
 	nodes.clear();
 	scene->ListVisibleNodes(*camera, nodes, point_light);
-	ProcessNodes();
+	ProcessNodes(camera);
 
 	const Matrix& mat_view_proj = camera->GetViewProj();
 	Matrix mat_world;
@@ -129,6 +134,7 @@ void SceneManager::DrawInternal(Scene* scene, Camera* camera)
 	memset(lights, 0, sizeof(lights));
 	uint passes;
 
+	// non transparent nodes
 	for(SceneNodeGroup& group : groups)
 	{
 		const bool animated = IsSet(group.flags, SceneNode::ANIMATED);
@@ -146,7 +152,7 @@ void SceneManager::DrawInternal(Scene* scene, Camera* camera)
 		V(effect->Begin(&passes, 0));
 		V(effect->BeginPass(0));
 
-		for(auto it = nodes.begin() + group.start, end = nodes.begin() + group.end + 1; it != end; ++it)
+		for(auto it = non_transparent.begin() + group.start, end = non_transparent.begin() + group.end + 1; it != end; ++it)
 		{
 			SceneNode* node = *it;
 			Matrix mat_combined = node->mat * mat_view_proj;
@@ -187,11 +193,127 @@ void SceneManager::DrawInternal(Scene* scene, Camera* camera)
 				const Mesh::Submesh& sub = mesh->subs[i];
 
 				// set texture
-				V(effect->SetTexture(shader->h_tex_diffuse, mesh->GetTexture(i)));
-				if(normal_map)
-					V(effect->SetTexture(shader->h_tex_normal, sub.tex_normal ? sub.tex_normal->tex : tex_normal));
-				if(specular_map)
-					V(effect->SetTexture(shader->h_tex_specular, sub.tex_specular ? sub.tex_specular->tex : tex_specular));
+				if(node->tex)
+				{
+					TexOverride& tex = node->tex[i];
+					V(effect->SetTexture(shader->h_tex_diffuse, tex.diffuse->tex));
+					if(normal_map)
+						V(effect->SetTexture(shader->h_tex_normal, tex.normal ? tex.normal->tex : tex_normal));
+					if(specular_map)
+						V(effect->SetTexture(shader->h_tex_specular, tex.specular ? tex.specular->tex : tex_specular));
+				}
+				else
+				{
+					V(effect->SetTexture(shader->h_tex_diffuse, mesh->GetTexture(i)));
+					if(normal_map)
+						V(effect->SetTexture(shader->h_tex_normal, sub.tex_normal ? sub.tex_normal->tex : tex_normal));
+					if(specular_map)
+						V(effect->SetTexture(shader->h_tex_specular, sub.tex_specular ? sub.tex_specular->tex : tex_specular));
+				}
+
+				// lighting
+				V(effect->SetVector(shader->h_specular_color, reinterpret_cast<const D3DXVECTOR4*>(&sub.specular_color)));
+				V(effect->SetFloat(shader->h_specular_intensity, sub.specular_intensity));
+				V(effect->SetFloat(shader->h_specular_hardness, (float)sub.specular_hardness));
+
+				V(effect->CommitChanges());
+				V(device->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, sub.min_ind, sub.n_ind, sub.first * 3, sub.tris));
+			}
+		}
+
+		V(effect->EndPass());
+		V(effect->End());
+	}
+
+	// transparent nodes
+	if(!transparent.empty())
+	{
+		app::render->SetAlphaBlend(true);
+		//app::render->GetDevice()->SetRenderState(D3DRS_Z)
+		//app::render->SetNoZWrite(true);
+		uint prev_flags = -1;
+		bool open = false;
+		for(SceneNode* node : transparent)
+		{
+			const bool animated = IsSet(node->tmp_flags, SceneNode::ANIMATED);
+			const bool specular_map = IsSet(node->tmp_flags, SceneNode::SPECULAR_MAP);
+			const bool normal_map = IsSet(node->tmp_flags, SceneNode::NORMAL_MAP);
+			const uint flags = shader->GetShaderId(animated, IsSet(node->flags, SceneNode::HAVE_BINORMALS),
+				fog, specular_map, normal_map, point_light, dir_light);
+			if(flags != prev_flags)
+			{
+				prev_flags = flags;
+				if(open)
+				{
+					V(effect->EndPass());
+					V(effect->End());
+				}
+				open = true;
+
+				effect = shader->GetShader(flags);
+				D3DXHANDLE tech;
+				V(effect->FindNextValidTechnique(nullptr, &tech));
+				V(effect->SetTechnique(tech));
+
+				V(effect->Begin(&passes, 0));
+				V(effect->BeginPass(0));
+			}
+
+			Matrix mat_combined = node->mat * mat_view_proj;
+
+			// set mesh
+			if(node->mesh != mesh)
+			{
+				mesh = node->mesh;
+				V(device->SetVertexDeclaration(app::render->GetVertexDeclaration(mesh->vertex_decl)));
+				V(device->SetStreamSource(0, mesh->vb, 0, mesh->vertex_size));
+				V(device->SetIndices(mesh->ib));
+			}
+
+			V(effect->SetMatrix(shader->h_mat_combined, reinterpret_cast<D3DXMATRIX*>(&mat_combined)));
+			V(effect->SetMatrix(shader->h_mat_world, reinterpret_cast<D3DXMATRIX*>(&node->mat)));
+			V(effect->SetVector(shader->h_tint, reinterpret_cast<D3DXVECTOR4*>(&node->tint)));
+			if(animated)
+			{
+				MeshInstance& mesh_inst = *node->mesh_inst;
+				V(effect->SetMatrixArray(shader->h_mat_bones, (D3DXMATRIX*)mesh_inst.mat_bones.data(), mesh_inst.mat_bones.size()));
+			}
+			if(point_light)
+			{
+				for(uint i = 0, count = min(3u, node->lights.size()); i < count; ++i)
+				{
+					lights[i].pos = node->lights[i]->pos;
+					lights[i].range = node->lights[i]->scale.x;
+					lights[i].color = node->lights[i]->tint;
+				}
+				V(effect->SetRawValue(shader->h_lights, lights, 0, sizeof(LightData) * 3));
+			}
+
+			for(int i = 0; i < mesh->head.n_subs; ++i)
+			{
+				if(!IsSet(node->subs, 1 << i))
+					continue;
+
+				const Mesh::Submesh& sub = mesh->subs[i];
+
+				// set texture
+				if(node->tex)
+				{
+					TexOverride& tex = node->tex[i];
+					V(effect->SetTexture(shader->h_tex_diffuse, tex.diffuse->tex));
+					if(normal_map)
+						V(effect->SetTexture(shader->h_tex_normal, tex.normal ? tex.normal->tex : tex_normal));
+					if(specular_map)
+						V(effect->SetTexture(shader->h_tex_specular, tex.specular ? tex.specular->tex : tex_specular));
+				}
+				else
+				{
+					V(effect->SetTexture(shader->h_tex_diffuse, mesh->GetTexture(i)));
+					if(normal_map)
+						V(effect->SetTexture(shader->h_tex_normal, sub.tex_normal ? sub.tex_normal->tex : tex_normal));
+					if(specular_map)
+						V(effect->SetTexture(shader->h_tex_specular, sub.tex_specular ? sub.tex_specular->tex : tex_specular));
+				}
 
 				// lighting
 				V(effect->SetVector(shader->h_specular_color, reinterpret_cast<const D3DXVECTOR4*>(&sub.specular_color)));
@@ -210,16 +332,19 @@ void SceneManager::DrawInternal(Scene* scene, Camera* camera)
 	V(device->EndScene());
 }
 
-void SceneManager::ProcessNodes()
+void SceneManager::ProcessNodes(Camera* camera)
 {
 	if(nodes.empty())
 		return;
 
-	int flag_filter = SceneNode::ANIMATED | SceneNode::HAVE_BINORMALS;
+	int flag_filter = SceneNode::ANIMATED | SceneNode::HAVE_BINORMALS | SceneNode::TRANSPARENT;
 	if(use_normal_map)
 		flag_filter |= SceneNode::NORMAL_MAP;
 	if(use_specular_map)
 		flag_filter |= SceneNode::SPECULAR_MAP;
+
+	transparent.clear();
+	non_transparent.clear();
 
 	for(SceneNode* node : nodes)
 	{
@@ -227,19 +352,27 @@ void SceneManager::ProcessNodes()
 		node->mesh->EnsureIsLoaded();
 		if(node->mesh_inst)
 			node->mesh_inst->SetupBones();
+		if(IsSet(node->tmp_flags, SceneNode::TRANSPARENT))
+		{
+			node->dist = Vec3::DistanceSquared(node->pos, camera->from);
+			transparent.push_back(node);
+		}
+		else
+			non_transparent.push_back(node);
 	}
 
-	std::sort(nodes.begin(), nodes.end(), [](const SceneNode* node1, const SceneNode* node2)
-		{
-			if(node1->tmp_flags != node2->tmp_flags)
-				return node1->tmp_flags > node2->tmp_flags;
-			else
-				return node1->mesh > node2->mesh;
-		});
+	// sort non transparent nodes
+	std::sort(non_transparent.begin(), non_transparent.end(), [](const SceneNode* node1, const SceneNode* node2)
+	{
+		if(node1->tmp_flags != node2->tmp_flags)
+			return node1->tmp_flags > node2->tmp_flags;
+		else
+			return node1->mesh > node2->mesh;
+	});
 
 	int prev_flags = -1, index = 0;
 	groups.clear();
-	for(SceneNode* node : nodes)
+	for(SceneNode* node : non_transparent)
 	{
 		if(node->tmp_flags != prev_flags)
 		{
@@ -251,6 +384,12 @@ void SceneManager::ProcessNodes()
 		++index;
 	}
 	groups.back().end = index - 1;
+
+	// sort transparent nodes
+	std::sort(transparent.begin(), transparent.end(), [](const SceneNode* node1, const SceneNode* node2)
+	{
+		return node1->dist > node2->dist;
+	});
 }
 
 void SceneManager::Update(float dt)

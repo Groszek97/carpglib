@@ -77,6 +77,7 @@ public:
 		node_human->scale = Vec3::One;
 		node_human->tint = Vec4::One;
 		node_human->subs = Bit(1) | Bit(2) | Bit(3);
+		node_human->tint = Vec4(1, 1, 1, 0.5f);
 		node_human->SetMesh(new MeshInstance(app::res_mgr->Load<Mesh>("human.qmsh")));
 		node_human->mesh_inst->Play("idzie", PLAY_NO_BLEND);
 		scene->Add(node_human);
@@ -105,29 +106,54 @@ public:
 		node->SetMesh(app::res_mgr->Load<Mesh>("rapier.qmsh"));
 		node_human->AddChild(node, node_human->mesh->GetPoint("bron"));
 
-		node = SceneNode::Get();
+		tex_ov.diffuse = app::res_mgr->Load<Texture>("chainmail_mith.jpg");
+		tex_ov.normal = nullptr;
+		tex_ov.specular = nullptr;
+
+		/*node = SceneNode::Get();
 		node->pos = Vec3::Zero;
 		node->rot = Vec3::Zero;
 		node->scale = Vec3::One;
 		node->tint = Vec4::One;
+		node->tint = Vec4(1, 1, 1, 0.2f);
 		node->SetMesh(app::res_mgr->Load<Mesh>("chainmail.qmsh"));
-		node_human->AddChild(node, nullptr, true);
+		node->SetTexture(&tex_ov);
+		node_human->AddChild(node, nullptr, true);*/
 
 		light = SceneNode::Get();
-		light->is_light = true;
+		light->SetLight(5.f);
 		light->pos = Vec3(2, 1, 0);
-		light->rot = Vec3::Zero;
-		light->scale.x = 5.f;
-		light->tint = Vec4::One;
 		scene->Add(light);
 
 		light2 = SceneNode::Get();
-		light2->is_light = true;
+		light2->SetLight(8.f);
 		light2->pos = Vec3(2, 1, 0);
-		light2->rot = Vec3::Zero;
-		light2->scale.x = 8.f;
 		light2->tint = Vec4(1.f, 0.f, 0.f, 1.f);
 		scene->Add(light2);
+
+		node = SceneNode::Get();
+		node->pos = Vec3(3, 0, 3);
+		node->tint = Vec4(1, 1, 1, 0.9f);
+		node->SetMesh(app::res_mgr->Load<Mesh>("red.qmsh"));
+		scene->Add(node);
+
+		node = SceneNode::Get();
+		node->pos = Vec3(5, 0, 5);
+		node->tint = Vec4(1, 1, 1, 0.5f);
+		node->SetMesh(app::res_mgr->Load<Mesh>("green.qmsh"));
+		scene->Add(node);
+
+		node = SceneNode::Get();
+		node->pos = Vec3(7, 0, 7);
+		node->tint = Vec4(1, 1, 1, 0.3f);
+		node->SetMesh(app::res_mgr->Load<Mesh>("blue.qmsh"));
+		scene->Add(node);
+
+		node = SceneNode::Get();
+		node->pos = Vec3(-5, 0, 0);
+		node->tint = Vec4(1, 1, 1, 0.5f);
+		node->SetMesh(app::res_mgr->Load<Mesh>("inside.qmsh"));
+		scene->Add(node);
 
 		font = gui->CreateFont("Arial", 14, 600, 512);
 		gui->Add(this);
@@ -203,6 +229,7 @@ private:
 	FpsCamera* camera;
 	Font* font;
 	float light_dir;
+	TexOverride tex_ov;
 };
 
 int AppEntry()

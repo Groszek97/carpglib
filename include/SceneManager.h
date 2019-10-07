@@ -16,7 +16,7 @@ public:
 		scenes.push_back(scene);
 	}
 	void SetActiveScene(Scene* scene);
-	void SetCamera(Camera* camera) { this->camera = camera; }
+	void SetCamera(Camera* camera) { active_camera = camera; }
 
 	bool use_fog, use_lighting, use_normal_map, use_specular_map;
 
@@ -27,13 +27,13 @@ private:
 	};
 
 	void DrawInternal(Scene* scene, Camera* camera);
-	void ProcessNodes();
+	void ProcessNodes(Camera* camera);
 
-	Camera* camera;
+	Camera* active_camera;
 	vector<Scene*> scenes;
 	Scene* active_scene;
 	SuperShader* shader;
-	vector<SceneNode*> nodes;
+	vector<SceneNode*> nodes, non_transparent, transparent;
 	vector<SceneNodeGroup> groups;
 	TEX tex_specular, tex_normal;
 };

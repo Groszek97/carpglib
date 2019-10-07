@@ -19,6 +19,12 @@ void SceneNode::SetMesh(MeshInstance* mesh_inst)
 	ApplyMeshFlags();
 }
 
+void SceneNode::SetTexture(TexOverride* tex)
+{
+	this->tex = tex;
+	ApplyMeshFlags();
+}
+
 void SceneNode::AddChild(SceneNode* node, Mesh::Point* point, bool use_parent_mesh)
 {
 	assert(node && !node->parent);
@@ -46,10 +52,25 @@ void SceneNode::ApplyMeshFlags()
 		flags |= ANIMATED;
 	if(IsSet(mesh->head.flags, Mesh::F_TANGENTS))
 		flags |= HAVE_BINORMALS;
-	if(IsSet(mesh->head.flags, Mesh::F_NORMAL_MAP))
-		flags |= NORMAL_MAP;
-	if(IsSet(mesh->head.flags, Mesh::F_SPECULAR_MAP))
-		flags |= SPECULAR_MAP;
+	if(!tex)
+	{
+		if(IsSet(mesh->head.flags, Mesh::F_NORMAL_MAP))
+			flags |= NORMAL_MAP;
+		if(IsSet(mesh->head.flags, Mesh::F_SPECULAR_MAP))
+			flags |= SPECULAR_MAP;
+	}
+	else
+	{
+		for(int i = 0; i < mesh->head.n_subs; ++i)
+		{
+			if(tex[i].normal)
+				flags |= NORMAL_MAP;
+			if(tex[i].specular)
+				flags |= SPECULAR_MAP;
+		}
+	}
+	if(tint.w != 1.f)
+		flags |= TRANSPARENT;
 }
 
 void SceneNode::OnGet()
@@ -58,6 +79,7 @@ void SceneNode::OnGet()
 	point = nullptr;
 	mesh = nullptr;
 	mesh_inst = nullptr;
+	tex = nullptr;
 	visible = true;
 	is_light = false;
 	billboard = false;
