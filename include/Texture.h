@@ -18,18 +18,13 @@ struct Texture : public Resource
 };
 
 //-----------------------------------------------------------------------------
-// Texture override data
-struct TexId
+struct TexOverride
 {
-	string id;
-	TexturePtr tex;
+	explicit TexOverride(TexturePtr diffuse = nullptr) : diffuse(diffuse), specular(nullptr), normal(nullptr) {}
+	void Load();
+	bool IsLoaded() const;
 
-	explicit TexId(cstring id) : tex(nullptr)
-	{
-		if(id)
-			this->id = id;
-	}
-	explicit TexId(const string& id) : id(id), tex(nullptr) {}
+	TexturePtr diffuse, specular, normal;
 };
 
 //-----------------------------------------------------------------------------

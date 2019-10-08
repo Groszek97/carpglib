@@ -2,11 +2,6 @@
 
 #include "Mesh.h"
 
-struct TexOverride
-{
-	TexturePtr diffuse, specular, normal;
-};
-
 struct SceneNode : public ObjectPoolProxy<SceneNode>
 {
 	enum Flags
@@ -40,7 +35,7 @@ public:
 	vector<SceneNode*> childs, lights;
 	Mesh* mesh;
 	MeshInstance* mesh_inst;
-	TexOverride* tex;
+	const TexOverride* tex;
 	Mesh::Point* point;
 	Matrix mat;
 	Vec4 tint;

@@ -15,8 +15,13 @@ public:
 		assert(scene);
 		scenes.push_back(scene);
 	}
-	void SetActiveScene(Scene* scene);
-	void SetCamera(Camera* camera) { active_camera = camera; }
+	void AddCamera(Camera* camera)
+	{
+		assert(camera);
+		cameras.push_back(camera);
+	}
+	void SetActiveScene(Scene* scene) { active_scene = scene; }
+	void SetActiveCamera(Camera* camera) { active_camera = camera; }
 
 	bool use_fog, use_lighting, use_normal_map, use_specular_map;
 
@@ -29,9 +34,10 @@ private:
 	void DrawInternal(Scene* scene, Camera* camera);
 	void ProcessNodes(Camera* camera);
 
+	Scene* active_scene;
 	Camera* active_camera;
 	vector<Scene*> scenes;
-	Scene* active_scene;
+	vector<Camera*> cameras;
 	SuperShader* shader;
 	vector<SceneNode*> nodes, non_transparent, transparent;
 	vector<SceneNodeGroup> groups;

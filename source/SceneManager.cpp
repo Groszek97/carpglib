@@ -27,7 +27,7 @@ use_specular_map(true)
 SceneManager::~SceneManager()
 {
 	DeleteElements(scenes);
-	delete active_camera;
+	DeleteElements(cameras);
 }
 
 void SceneManager::Init()
@@ -53,6 +53,10 @@ void SceneManager::Draw(RenderTarget* target, Scene* scene, Camera* camera)
 void SceneManager::DrawInternal(Scene* scene, Camera* camera)
 {
 	IDirect3DDevice9* device = app::render->GetDevice();
+	HRESULT hr = device->TestCooperativeLevel();
+	if(hr != D3D_OK)
+		return;
+
 	if(!scene)
 	{
 		V(device->Clear(0, nullptr, D3DCLEAR_ZBUFFER | D3DCLEAR_TARGET | D3DCLEAR_STENCIL, Color::Black, 1.f, 0));
@@ -195,7 +199,7 @@ void SceneManager::DrawInternal(Scene* scene, Camera* camera)
 				// set texture
 				if(node->tex)
 				{
-					TexOverride& tex = node->tex[i];
+					const TexOverride& tex = node->tex[i];
 					V(effect->SetTexture(shader->h_tex_diffuse, tex.diffuse->tex));
 					if(normal_map)
 						V(effect->SetTexture(shader->h_tex_normal, tex.normal ? tex.normal->tex : tex_normal));
@@ -299,7 +303,7 @@ void SceneManager::DrawInternal(Scene* scene, Camera* camera)
 				// set texture
 				if(node->tex)
 				{
-					TexOverride& tex = node->tex[i];
+					const TexOverride& tex = node->tex[i];
 					V(effect->SetTexture(shader->h_tex_diffuse, tex.diffuse->tex));
 					if(normal_map)
 						V(effect->SetTexture(shader->h_tex_normal, tex.normal ? tex.normal->tex : tex_normal));
@@ -334,6 +338,9 @@ void SceneManager::DrawInternal(Scene* scene, Camera* camera)
 
 void SceneManager::ProcessNodes(Camera* camera)
 {
+	transparent.clear();
+	non_transparent.clear();
+
 	if(nodes.empty())
 		return;
 
@@ -342,9 +349,6 @@ void SceneManager::ProcessNodes(Camera* camera)
 		flag_filter |= SceneNode::NORMAL_MAP;
 	if(use_specular_map)
 		flag_filter |= SceneNode::SPECULAR_MAP;
-
-	transparent.clear();
-	non_transparent.clear();
 
 	for(SceneNode* node : nodes)
 	{
@@ -396,23 +400,4 @@ void SceneManager::Update(float dt)
 {
 	for(Scene* scene : scenes)
 		scene->Update(dt);
-}
-
-void SceneManager::SetActiveScene(Scene* scene)
-{
-	if(scene)
-	{
-		bool ok = false;
-		for(Scene* s : scenes)
-		{
-			if(s == scene)
-			{
-				ok = true;
-				break;
-			}
-		}
-		if(!ok)
-			AddScene(scene);
-	}
-	active_scene = scene;
 }
