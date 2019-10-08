@@ -163,6 +163,13 @@ struct Mesh : public Resource
 		assert(idx < head.n_subs && subs[idx].tex && subs[idx].tex->tex);
 		return subs[idx].tex->tex;
 	}
+	TEX GetTexture(uint index, const TexOverride* tex_override) const
+	{
+		if(tex_override && tex_override[index].diffuse)
+			return tex_override[index].diffuse->tex;
+		else
+			return GetTexture(index);
+	}
 
 	bool IsAnimated() const { return IsSet(head.flags, F_ANIMATED); }
 	bool IsStatic() const { return IsSet(head.flags, F_STATIC); }
