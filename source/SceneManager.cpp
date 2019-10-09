@@ -338,6 +338,7 @@ void SceneManager::DrawInternal(Scene* scene, Camera* camera)
 
 void SceneManager::ProcessNodes(Camera* camera)
 {
+	groups.clear();
 	transparent.clear();
 	non_transparent.clear();
 
@@ -375,7 +376,6 @@ void SceneManager::ProcessNodes(Camera* camera)
 	});
 
 	int prev_flags = -1, index = 0;
-	groups.clear();
 	for(SceneNode* node : non_transparent)
 	{
 		if(node->tmp_flags != prev_flags)

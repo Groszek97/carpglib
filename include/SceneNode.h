@@ -26,11 +26,13 @@ struct SceneNode : public ObjectPoolProxy<SceneNode>
 	}
 	void SetTexture(TexOverride* tex);
 	void AddChild(SceneNode* node, Mesh::Point* point = nullptr, bool use_parent_mesh = false);
+	SceneNode* GetChild(int id);
 
 private:
 	void ApplyMeshFlags();
 
 public:
+	int id;
 	SceneNode* parent;
 	vector<SceneNode*> childs, lights;
 	Mesh* mesh;

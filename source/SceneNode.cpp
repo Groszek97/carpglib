@@ -45,6 +45,16 @@ void SceneNode::AddChild(SceneNode* node, Mesh::Point* point, bool use_parent_me
 	childs.push_back(node);
 }
 
+SceneNode* SceneNode::GetChild(int id)
+{
+	for(SceneNode* child : childs)
+	{
+		if(child->id == id)
+			return child;
+	}
+	return nullptr;
+}
+
 void SceneNode::ApplyMeshFlags()
 {
 	flags = 0;
