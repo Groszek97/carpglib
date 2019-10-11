@@ -40,12 +40,14 @@ public:
 	void Init();
 	bool Reset(bool force);
 	void WaitReset();
-	void Draw(bool call_present = true);
+	bool CanDraw();
+	void Present();
 	bool CheckDisplay(const Int2& size, int& hz); // dla zera zwraca najlepszy hz
 	void RegisterShader(ShaderHandler* shader);
 	ID3DXEffect* CompileShader(cstring name);
 	ID3DXEffect* CompileShader(CompileShaderParams& params);
-	TEX CreateTexture(const Int2& size);
+	void ReloadShaders();
+	TEX CreateTexture(const Int2& size, Color* fill = nullptr);
 	RenderTarget* CreateRenderTarget(const Int2& size);
 	Texture* CopyToTexture(RenderTarget* target);
 	bool IsLostDevice() const { return lost_device; }

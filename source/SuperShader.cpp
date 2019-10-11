@@ -6,11 +6,9 @@
 #include "DirectX.h"
 
 //=================================================================================================
-SuperShader::SuperShader(Render* render) : render(render), pool(nullptr)
+SuperShader::SuperShader() : pool(nullptr)
 {
 	V(D3DXCreateEffectPool(&pool));
-
-	render->RegisterShader(this);
 }
 
 //=================================================================================================
@@ -22,7 +20,7 @@ SuperShader::~SuperShader()
 //=================================================================================================
 void SuperShader::OnInit()
 {
-	cstring path = Format("%s/super.fx", render->GetShadersDir().c_str());
+	cstring path = Format("%s/super.fx", app::render->GetShadersDir().c_str());
 	FileReader f(path);
 	if(!f)
 		throw Format("Failed to open file '%s'.", path);
@@ -36,25 +34,25 @@ void SuperShader::OnInit()
 	Info("Setting up super shader parameters.");
 	GetShader(0);
 	ID3DXEffect* e = shaders[0].e;
-	hMatCombined = e->GetParameterByName(nullptr, "matCombined");
-	hMatWorld = e->GetParameterByName(nullptr, "matWorld");
-	hMatBones = e->GetParameterByName(nullptr, "matBones");
-	hTint = e->GetParameterByName(nullptr, "tint");
-	hAmbientColor = e->GetParameterByName(nullptr, "ambientColor");
-	hFogColor = e->GetParameterByName(nullptr, "fogColor");
-	hFogParams = e->GetParameterByName(nullptr, "fogParams");
-	hLightDir = e->GetParameterByName(nullptr, "lightDir");
-	hLightColor = e->GetParameterByName(nullptr, "lightColor");
-	hLights = e->GetParameterByName(nullptr, "lights");
-	hSpecularColor = e->GetParameterByName(nullptr, "specularColor");
-	hSpecularIntensity = e->GetParameterByName(nullptr, "specularIntensity");
-	hSpecularHardness = e->GetParameterByName(nullptr, "specularHardness");
-	hCameraPos = e->GetParameterByName(nullptr, "cameraPos");
-	hTexDiffuse = e->GetParameterByName(nullptr, "texDiffuse");
-	hTexNormal = e->GetParameterByName(nullptr, "texNormal");
-	hTexSpecular = e->GetParameterByName(nullptr, "texSpecular");
-	assert(hMatCombined && hMatWorld && hMatBones && hTint && hAmbientColor && hFogColor && hFogParams && hLightDir && hLightColor && hLights && hSpecularColor
-		&& hSpecularIntensity && hSpecularHardness && hCameraPos && hTexDiffuse && hTexNormal && hTexSpecular);
+	h_mat_combined = e->GetParameterByName(nullptr, "mat_combined");
+	h_mat_world = e->GetParameterByName(nullptr, "mat_world");
+	h_mat_bones = e->GetParameterByName(nullptr, "mat_bones");
+	h_tint = e->GetParameterByName(nullptr, "tint");
+	h_ambient_color = e->GetParameterByName(nullptr, "ambient_color");
+	h_fog_color = e->GetParameterByName(nullptr, "fog_color");
+	h_fog_params = e->GetParameterByName(nullptr, "fog_params");
+	h_light_dir = e->GetParameterByName(nullptr, "light_dir");
+	h_light_color = e->GetParameterByName(nullptr, "light_color");
+	h_lights = e->GetParameterByName(nullptr, "lights");
+	h_specular_color = e->GetParameterByName(nullptr, "specular_color");
+	h_specular_intensity = e->GetParameterByName(nullptr, "specular_intensity");
+	h_specular_hardness = e->GetParameterByName(nullptr, "specular_hardness");
+	h_camera_pos = e->GetParameterByName(nullptr, "camera_pos");
+	h_tex_diffuse = e->GetParameterByName(nullptr, "tex_diffuse");
+	h_tex_normal = e->GetParameterByName(nullptr, "tex_normal");
+	h_tex_specular = e->GetParameterByName(nullptr, "tex_specular");
+	assert(h_mat_combined && h_mat_world && h_mat_bones && h_tint && h_ambient_color && h_fog_color && h_fog_params && h_light_dir && h_light_color && h_lights
+		&& h_specular_color && h_specular_intensity && h_specular_hardness && h_camera_pos && h_tex_diffuse && h_tex_normal && h_tex_specular);
 }
 
 //=================================================================================================
@@ -115,7 +113,7 @@ ID3DXEffect* SuperShader::GetShader(uint id)
 //=================================================================================================
 ID3DXEffect* SuperShader::CompileShader(uint id)
 {
-	int shader_version = render->GetShaderVersion();
+	int shader_version = app::render->GetShaderVersion();
 	D3DXMACRO macros[10] = { 0 };
 	uint i = 0;
 
@@ -184,7 +182,7 @@ ID3DXEffect* SuperShader::CompileShader(uint id)
 	params.pool = pool;
 
 	Shader& s = Add1(shaders);
-	s.e = render->CompileShader(params);
+	s.e = app::render->CompileShader(params);
 	s.id = id;
 
 	return s.e;

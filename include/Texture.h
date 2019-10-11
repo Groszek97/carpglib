@@ -20,9 +20,11 @@ struct Texture : public Resource
 //-----------------------------------------------------------------------------
 struct TexOverride
 {
-	explicit TexOverride(Texture* diffuse) : diffuse(diffuse) {}
+	explicit TexOverride(TexturePtr diffuse = nullptr) : diffuse(diffuse), specular(nullptr), normal(nullptr) {}
+	void Load();
+	bool IsLoaded() const;
 
-	Texture* diffuse;
+	TexturePtr diffuse, specular, normal;
 };
 
 //-----------------------------------------------------------------------------
@@ -31,6 +33,7 @@ struct TextureLock
 	TextureLock(TEX tex);
 	~TextureLock();
 	uint* operator [] (uint row) { return (uint*)(data + pitch * row); }
+	void Fill(Color color);
 	void GenerateMipSubLevels();
 
 private:

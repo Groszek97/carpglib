@@ -16,15 +16,18 @@ Gui* app::gui;
 
 //=================================================================================================
 Gui::Gui() : tFontTarget(nullptr), vb(nullptr), vb2(nullptr), cursor_mode(CURSOR_NORMAL), vb2_locked(false), focused_ctrl(nullptr), tPixel(nullptr),
-master_layout(nullptr), layout(nullptr), overlay(nullptr), grayscale(false), vertex_decl(nullptr), effect(nullptr)
+master_layout(nullptr), layout(nullptr), overlay(nullptr), grayscale(false), vertex_decl(nullptr), effect(nullptr), layer(nullptr), dialog_layer(nullptr)
 {
 }
 
 //=================================================================================================
 Gui::~Gui()
 {
+	OnRelease();
 	DeleteElements(created_dialogs);
 	SafeRelease(tPixel);
+	delete layer;
+	delete dialog_layer;
 	delete master_layout;
 }
 
@@ -1147,14 +1150,11 @@ void Gui::Flush(bool lock)
 }
 
 //=================================================================================================
-void Gui::Draw(bool draw_layers, bool draw_dialogs)
+void Gui::Draw()
 {
 	PROFILER_BLOCK("DrawGui");
 
 	wnd_size = app::engine->GetWindowSize();
-
-	if(!draw_layers && !draw_dialogs)
-		return;
 
 	app::render->SetAlphaTest(false);
 	app::render->SetAlphaBlend(true);
@@ -1176,10 +1176,11 @@ void Gui::Draw(bool draw_layers, bool draw_dialogs)
 	V(effect->BeginPass(0));
 
 	// rysowanie
-	if(draw_layers)
+	//if(draw_layers)
 		layer->Draw();
-	if(draw_dialogs)
+	//if(draw_dialogs)
 		dialog_layer->Draw();
+	FIXME;
 
 	// draw cursor
 	if(NeedCursor())
@@ -1492,15 +1493,6 @@ void Gui::DrawSprite(Texture* t, const Int2& pos, Color color, const Rect* clipp
 		in_buffer = 1;
 		Flush();
 	}
-}
-
-//=================================================================================================
-void Gui::OnClean()
-{
-	OnReset();
-
-	delete layer;
-	delete dialog_layer;
 }
 
 //=================================================================================================

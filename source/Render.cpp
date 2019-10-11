@@ -117,7 +117,7 @@ void Render::Init()
 	hr = d3d->CheckDepthStencilMatch(used_adapter, D3DDEVTYPE_HAL, DISPLAY_FORMAT, D3DFMT_A8R8G8B8, ZBUFFER_FORMAT);
 	if(FAILED(hr))
 		throw Format("Render: Unsupported render target D3DFMT_A8R8G8B8 with display %s and depth buffer %s! (%d)",
-		STRING(DISPLAY_FORMAT), STRING(BACKBUFFER_FORMAT), hr);
+			STRING(DISPLAY_FORMAT), STRING(BACKBUFFER_FORMAT), hr);
 
 	// check multisampling
 	DWORD levels, levels2;
@@ -494,9 +494,8 @@ void Render::WaitReset()
 	AfterReset();
 }
 
-
 //=================================================================================================
-void Render::Draw(bool call_present)
+bool Render::CanDraw()
 {
 	HRESULT hr = device->TestCooperativeLevel();
 	if(hr != D3D_OK)
@@ -506,7 +505,7 @@ void Render::Draw(bool call_present)
 		{
 			// device lost, can't reset yet
 			Sleep(1);
-			return;
+			return false;
 		}
 		else if(hr == D3DERR_DEVICENOTRESET)
 		{
@@ -514,25 +513,25 @@ void Render::Draw(bool call_present)
 			if(!Reset(false))
 			{
 				Sleep(1);
-				return;
+				return false;
 			}
 		}
 		else
 			throw Format("Render: Lost directx device (%d).", hr);
 	}
+	return true;
+}
 
-	app::app->OnDraw();
-
-	if(call_present)
+//=================================================================================================
+void Render::Present()
+{
+	HRESULT hr = device->Present(nullptr, nullptr, app::engine->GetWindowHandle(), nullptr);
+	if(FAILED(hr))
 	{
-		hr = device->Present(nullptr, nullptr, app::engine->GetWindowHandle(), nullptr);
-		if(FAILED(hr))
-		{
-			if(hr == D3DERR_DEVICELOST)
-				lost_device = true;
-			else
-				throw Format("Render: Failed to present screen (%d).", hr);
-		}
+		if(hr == D3DERR_DEVICELOST)
+			lost_device = true;
+		else
+			throw Format("Render: Failed to present screen (%d).", hr);
 	}
 }
 
@@ -789,10 +788,25 @@ ID3DXEffect* Render::CompileShader(CompileShaderParams& params)
 }
 
 //=================================================================================================
-TEX Render::CreateTexture(const Int2& size)
+void Render::ReloadShaders()
+{
+	for(ShaderHandler* shader : shaders)
+	{
+		shader->OnRelease();
+		shader->OnInit();
+	}
+}
+
+//=================================================================================================
+TEX Render::CreateTexture(const Int2& size, Color* fill)
 {
 	TEX tex;
 	V(device->CreateTexture(size.x, size.y, 0, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &tex, nullptr));
+	if(fill)
+	{
+		TextureLock lock(tex);
+		lock.Fill(*fill);
+	}
 	return tex;
 }
 
