@@ -1176,11 +1176,8 @@ void Gui::Draw()
 	V(effect->BeginPass(0));
 
 	// rysowanie
-	//if(draw_layers)
-		layer->Draw();
-	//if(draw_dialogs)
-		dialog_layer->Draw();
-	FIXME;
+	layer->Draw();
+	dialog_layer->Draw();
 
 	// draw cursor
 	if(NeedCursor())

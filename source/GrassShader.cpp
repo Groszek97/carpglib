@@ -7,21 +7,8 @@
 #include "DirectX.h"
 
 //=================================================================================================
-GrassShader::GrassShader(Render* render) : render(render), device(render->GetDevice()), vertex_decl(nullptr), effect(nullptr), vb(nullptr), vb_size(0)
+GrassShader::GrassShader() : render(app::render), device(app::render->GetDevice()), vertex_decl(nullptr), effect(nullptr), vb(nullptr), vb_size(0)
 {
-	const D3DVERTEXELEMENT9 decl[] = {
-		{0, 0,  D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_POSITION,	0},
-		{0, 12,	D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_NORMAL,	0},
-		{0, 24, D3DDECLTYPE_FLOAT2,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_TEXCOORD,	0},
-		{1, 0,	D3DDECLTYPE_FLOAT4,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_TEXCOORD,	1},
-		{1, 16,	D3DDECLTYPE_FLOAT4,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_TEXCOORD,	2},
-		{1, 32,	D3DDECLTYPE_FLOAT4,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_TEXCOORD,	3},
-		{1, 48,	D3DDECLTYPE_FLOAT4,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_TEXCOORD,	4},
-		D3DDECL_END()
-	};
-	V(device->CreateVertexDeclaration(decl, &vertex_decl));
-
-	render->RegisterShader(this);
 }
 
 //=================================================================================================
@@ -33,6 +20,21 @@ GrassShader::~GrassShader()
 //=================================================================================================
 void GrassShader::OnInit()
 {
+	if(!vertex_decl)
+	{
+		const D3DVERTEXELEMENT9 decl[] = {
+			{0, 0,  D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_POSITION,	0},
+			{0, 12,	D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_NORMAL,	0},
+			{0, 24, D3DDECLTYPE_FLOAT2,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_TEXCOORD,	0},
+			{1, 0,	D3DDECLTYPE_FLOAT4,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_TEXCOORD,	1},
+			{1, 16,	D3DDECLTYPE_FLOAT4,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_TEXCOORD,	2},
+			{1, 32,	D3DDECLTYPE_FLOAT4,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_TEXCOORD,	3},
+			{1, 48,	D3DDECLTYPE_FLOAT4,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_TEXCOORD,	4},
+			D3DDECL_END()
+		};
+		V(device->CreateVertexDeclaration(decl, &vertex_decl));
+	}
+
 	effect = render->CompileShader("grass.fx");
 
 	tech = effect->GetTechniqueByName("grass");

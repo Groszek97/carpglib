@@ -8,18 +8,8 @@
 #include "DirectX.h"
 
 //=================================================================================================
-TerrainShader::TerrainShader(Render* render) : render(render), device(render->GetDevice()), vertex_decl(nullptr), effect(nullptr)
+TerrainShader::TerrainShader() : render(app::render), device(app::render->GetDevice()), vertex_decl(nullptr), effect(nullptr)
 {
-	const D3DVERTEXELEMENT9 decl[] = {
-		{0, 0,  D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_POSITION,		0},
-		{0, 12,	D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_NORMAL,		0},
-		{0, 24, D3DDECLTYPE_FLOAT2,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_TEXCOORD,		0},
-		{0, 32, D3DDECLTYPE_FLOAT2,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_TEXCOORD,		1},
-		D3DDECL_END()
-	};
-	V(device->CreateVertexDeclaration(decl, &vertex_decl));
-
-	render->RegisterShader(this);
 }
 
 //=================================================================================================
@@ -31,6 +21,18 @@ TerrainShader::~TerrainShader()
 //=================================================================================================
 void TerrainShader::OnInit()
 {
+	if(!vertex_decl)
+	{
+		const D3DVERTEXELEMENT9 decl[] = {
+			{0, 0,  D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_POSITION,		0},
+			{0, 12,	D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_NORMAL,		0},
+			{0, 24, D3DDECLTYPE_FLOAT2,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_TEXCOORD,		0},
+			{0, 32, D3DDECLTYPE_FLOAT2,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_TEXCOORD,		1},
+			D3DDECL_END()
+		};
+		V(device->CreateVertexDeclaration(decl, &vertex_decl));
+	}
+
 	effect = render->CompileShader("terrain.fx");
 
 	tech = effect->GetTechniqueByName("terrain");

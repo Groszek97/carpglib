@@ -10,6 +10,7 @@
 #include "ResourceManager.h"
 #include "TextBox.h"
 #include "File.h"
+#include "Engine.h"
 
 class PickFileDialogItem : public GuiElement
 {

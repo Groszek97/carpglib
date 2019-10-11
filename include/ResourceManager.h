@@ -3,6 +3,7 @@
 //-----------------------------------------------------------------------------
 #include "Texture.h"
 #include "Sound.h"
+#include "Mesh.h"
 #include "Timer.h"
 
 //-----------------------------------------------------------------------------
@@ -86,6 +87,7 @@ class ResourceManager
 	ResourceType FilenameToResourceType(cstring filename);
 	void AddTaskCategory(Cstring name);
 	void AddTask(void* ptr, TaskCallback callback);
+	void SetEngineResourcesDir(cstring dir) { engine_res_dir = dir; }
 	void SetProgressCallback(ProgressCallback clbk) { progress_clbk = clbk; }
 	void PrepareLoadScreen(float progress_min = 0.f, float progress_max = 1.f);
 	void StartLoadScreen(cstring category = nullptr);
@@ -167,6 +169,7 @@ private:
 	Resource* CreateResource(ResourceType type);
 	Resource* TryGetResource(Cstring filename, ResourceType type);
 	Resource* GetResource(Cstring filename, ResourceType type);
+	Resource* LoadResource(Cstring filename, ResourceType type);
 	void LoadResourceInternal(Resource* res);
 	void LoadMesh(Mesh* mesh);
 	void LoadVertexData(VertexData* vd);
@@ -186,4 +189,5 @@ private:
 	float timer_dt, progress, progress_min, progress_max;
 	ProgressCallback progress_clbk;
 	ObjectPool<TaskDetail> task_pool;
+	string engine_res_dir;
 };

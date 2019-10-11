@@ -7,7 +7,7 @@
 class TerrainShader : public ShaderHandler
 {
 public:
-	TerrainShader(Render* render);
+	TerrainShader();
 	~TerrainShader();
 	void OnInit() override;
 	void OnReset() override;

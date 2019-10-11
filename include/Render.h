@@ -64,10 +64,11 @@ public:
 	int GetAdapter() const { return used_adapter; }
 	const string& GetShadersDir() const { return shaders_dir; }
 	IDirect3DVertexDeclaration9* GetVertexDeclaration(VertexDeclarationId id) { return vertex_decl[id]; }
-	void SetAlphaBlend(bool use_alphablend);
-	void SetAlphaTest(bool use_alphatest);
-	void SetNoCulling(bool use_nocull);
-	void SetNoZWrite(bool use_nozwrite);
+	void SetAlphaBlend(bool alphablend);
+	void SetAlphaTest(bool alphatest);
+	void SetNoCulling(bool nocull);
+	void SetNoZWrite(bool nozwrite);
+	void SetWireframe(bool wireframe);
 	void SetVsync(bool vsync);
 	int SetMultisampling(int type, int quality);
 	void SetRefreshRateInternal(int refresh_hz) { this->refresh_hz = refresh_hz; }
@@ -97,5 +98,5 @@ private:
 	SURFACE current_surf;
 	string shaders_dir;
 	int used_adapter, shader_version, refresh_hz, multisampling, multisampling_quality;
-	bool initialized, vsync, lost_device, res_freed, r_alphatest, r_nozwrite, r_nocull, r_alphablend;
+	bool initialized, vsync, lost_device, res_freed, alphatest, nozwrite, nocull, alphablend, wireframe;
 };
