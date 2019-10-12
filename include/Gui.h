@@ -146,7 +146,7 @@ public:
 		vector<Hitbox>* hitboxes = nullptr, int* hitbox_counter = nullptr, const vector<TextLine>* lines = nullptr);
 	void Add(Control* ctrl);
 	void DrawItem(Texture* t, const Int2& item_pos, const Int2& item_size, Color color, int corner = 16, int size = 64, const Box2d* clip_rect = nullptr);
-	void Update(float dt, float mouse_speed);
+	void Update(float dt);
 	void DrawSprite(Texture* t, const Int2& pos, Color color = Color::White, const Rect* clipping = nullptr);
 	void OnChar(char c);
 	DialogBox* ShowDialog(const DialogInfo& info);

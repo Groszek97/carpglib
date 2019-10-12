@@ -53,7 +53,6 @@ void Gui::Init()
 	layer = new Container;
 	layer->auto_focus = true;
 	dialog_layer = new Container;
-	dialog_layer->focus_top = true;
 
 	// create pixel texture
 	V(D3DXCreateTexture(device, 1, 1, 0, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &tPixel));
@@ -1339,7 +1338,7 @@ void Gui::DrawItem(Texture* t, const Int2& item_pos, const Int2& item_size, Colo
 }
 
 //=================================================================================================
-void Gui::Update(float dt, float mouse_speed)
+void Gui::Update(float dt)
 {
 	PROFILER_BLOCK("UpdateGui");
 
@@ -1347,9 +1346,9 @@ void Gui::Update(float dt, float mouse_speed)
 	cursor_mode = CURSOR_NORMAL;
 	mouse_wheel = app::input->GetMouseWheel();
 	prev_cursor_pos = cursor_pos;
-	if(NeedCursor() && mouse_speed > 0)
+	if(NeedCursor())
 	{
-		cursor_pos += app::input->GetMouseDif() * mouse_speed;
+		cursor_pos += app::input->GetMouseDif();
 		if(cursor_pos.x < 0)
 			cursor_pos.x = 0;
 		if(cursor_pos.y < 0)
@@ -1370,11 +1369,7 @@ void Gui::Update(float dt, float mouse_speed)
 		if(!focused_ctrl->visible)
 			focused_ctrl = nullptr;
 		else if(dialog_layer->Empty())
-		{
-			layer->dont_focus = true;
 			layer->Update(dt);
-			layer->dont_focus = false;
-		}
 		else
 		{
 			focused_ctrl->LostFocus();

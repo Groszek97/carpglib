@@ -228,7 +228,10 @@ void Engine::DoTick(bool update_game)
 
 	// update game
 	if(update_game)
+	{
 		app::app->OnUpdate(dt);
+		app::gui->Update(dt);
+	}
 	if(shutdown)
 	{
 		if(active && locked_cursor)
