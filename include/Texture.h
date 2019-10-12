@@ -20,11 +20,15 @@ struct Texture : public Resource
 //-----------------------------------------------------------------------------
 struct TexOverride
 {
-	explicit TexOverride(TexturePtr diffuse = nullptr) : diffuse(diffuse), specular(nullptr), normal(nullptr) {}
+	explicit TexOverride(Texture* diffuse = nullptr) : diffuse(diffuse), normal(nullptr), specular(nullptr) {}
+	int GetIndex() const
+	{
+		return (normal ? 2 : 0) + (specular ? 1 : 0);
+	}
 	void Load();
 	bool IsLoaded() const;
 
-	TexturePtr diffuse, specular, normal;
+	TexturePtr diffuse, normal, specular;
 };
 
 //-----------------------------------------------------------------------------
