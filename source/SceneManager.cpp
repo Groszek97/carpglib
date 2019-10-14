@@ -354,9 +354,6 @@ void SceneManager::ProcessNodes(Camera* camera)
 	for(SceneNode* node : nodes)
 	{
 		node->tmp_flags = node->flags & flag_filter;
-		node->mesh->EnsureIsLoaded();
-		if(node->mesh_inst)
-			node->mesh_inst->SetupBones();
 		if(IsSet(node->tmp_flags, SceneNode::TRANSPARENT))
 		{
 			node->dist = Vec3::DistanceSquared(node->pos, camera->from);

@@ -44,19 +44,34 @@ void Scene::ListVisibleNodes(Camera& camera, vector<SceneNode*>& visible_nodes, 
 
 	delegate<void(SceneNode*)> process = [&](SceneNode* node)
 	{
-		if(node->mesh && node->visible && frustum.SphereToFrustum(node->pos, node->mesh->head.radius))
+		if(!node->mesh)
+			return;
+		if(!node->visible)
+			return;
+		node->mesh->EnsureIsLoaded();
+		if(frustum.SphereToFrustum(node->pos, node->mesh->head.radius))
 		{
 			visible_nodes.push_back(node);
+
 			if(node->mesh_inst)
 				node->mesh_inst->SetupBones();
-			if(node->point)
-				node->mat = node->point->mat * node->parent->mesh_inst->mat_bones[node->point->bone] * node->parent->mat;
-			else if(node->parent)
-				node->mat = Matrix::Transform(node->pos, node->rot, node->scale) * node->parent->mat;
-			else if(node->billboard)
+
+			if(node->billboard)
+			{
+				assert(!node->parent); // TODO
 				node->mat = Matrix::CreateLookAt(node->pos, camera.from).Inverse() * mat_view_proj;
+			}
 			else
+			{
 				node->mat = Matrix::Transform(node->pos, node->rot, node->scale);
+				if(node->parent)
+				{
+					if(node->point)
+						node->mat = node->mat * node->point->mat * node->parent->mesh_inst->mat_bones[node->point->bone];
+					node->mat *= node->parent->mat;
+				}
+			}
+
 			if(get_lights)
 				GetClosestLights(node);
 			if(!node->childs.empty())

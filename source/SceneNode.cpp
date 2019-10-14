@@ -58,7 +58,7 @@ SceneNode* SceneNode::GetChild(int id)
 void SceneNode::ApplyMeshFlags()
 {
 	flags = 0;
-	if(IsSet(mesh->head.flags, Mesh::F_ANIMATED) && mesh_inst)
+	if(mesh_inst && (IsSet(mesh->head.flags, Mesh::F_ANIMATED) || (parent && parent->mesh_inst == mesh_inst)))
 		flags |= ANIMATED;
 	if(IsSet(mesh->head.flags, Mesh::F_TANGENTS))
 		flags |= HAVE_BINORMALS;
