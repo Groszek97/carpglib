@@ -25,16 +25,19 @@ void Texture::ResizeImage(Int2& new_size, Int2& img_size, Vec2& scale)
 }
 
 //=================================================================================================
-Int2 Texture::GetSize(TEX tex)
+Int2 Texture::GetSize() const
 {
-	assert(tex);
-	D3DSURFACE_DESC desc;
-	V(tex->GetLevelDesc(0, &desc));
-	return Int2(desc.Width, desc.Height);
+	ID3D11Texture2D* res;
+	V(tex->GetResource(reinterpret_cast<ID3D11Resource**>(&res)));
+	D3D11_TEXTURE2D_DESC desc;
+	res->GetDesc(&desc);
+	Int2 size(desc.Width, desc.Height);
+	res->Release();
+	return size;
 }
 
 //=================================================================================================
-TextureLock::TextureLock(TEX tex) : tex(tex)
+/*TextureLock::TextureLock(TEX tex) : tex(tex)
 {
 	assert(tex);
 	D3DLOCKED_RECT lock;
@@ -57,4 +60,5 @@ void TextureLock::GenerateMipSubLevels()
 	V(tex->UnlockRect(0));
 	tex->GenerateMipSubLevels();
 	tex = nullptr;
-}
+}*/
+FIXME;

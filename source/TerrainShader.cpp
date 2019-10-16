@@ -1,5 +1,7 @@
 #include "EnginePch.h"
 #include "EngineCore.h"
+FIXME;
+#if 0
 #include "TerrainShader.h"
 #include "Terrain.h"
 #include "CameraBase.h"
@@ -138,3 +140,4 @@ void TerrainShader::Draw(Terrain* terrain, const vector<uint>& parts)
 	vb->Release();
 	ib->Release();
 }
+#endif

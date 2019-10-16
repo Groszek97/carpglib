@@ -8,13 +8,12 @@ struct Texture : public Resource
 {
 	static constexpr ResourceType Type = ResourceType::Texture;
 
-	TEX tex;
+	ID3D11ShaderResourceView* tex;
 
 	Texture() : tex(nullptr) {}
 	~Texture();
 	void ResizeImage(Int2& new_size, Int2& img_size, Vec2& scale);
-	Int2 GetSize() const { return GetSize(tex); }
-	static Int2 GetSize(TEX tex);
+	Int2 GetSize() const;
 };
 
 //-----------------------------------------------------------------------------
@@ -30,7 +29,7 @@ struct TexOverride
 };
 
 //-----------------------------------------------------------------------------
-struct TextureLock
+/*struct TextureLock
 {
 	TextureLock(TEX tex);
 	~TextureLock();
@@ -41,4 +40,5 @@ private:
 	TEX tex;
 	byte* data;
 	int pitch;
-};
+};*/
+FIXME;

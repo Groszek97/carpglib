@@ -6,12 +6,10 @@
 #include "ShaderHandler.h"
 #include "File.h"
 #include "App.h"
-#include "DirectX.h"
+#include <d3d11_1.h>
 
 Render* app::render;
-static const D3DFORMAT DISPLAY_FORMAT = D3DFMT_X8R8G8B8;
-static const D3DFORMAT BACKBUFFER_FORMAT = D3DFMT_A8R8G8B8;
-static const D3DFORMAT ZBUFFER_FORMAT = D3DFMT_D24S8;
+const DXGI_FORMAT DISPLAY_FORMAT = DXGI_FORMAT_R8G8B8A8_UNORM;
 
 //=================================================================================================
 Render::Render() : initialized(false), d3d(nullptr), device(nullptr), sprite(nullptr), current_target(nullptr), current_surf(nullptr), vsync(true),
@@ -187,6 +185,54 @@ void Render::Init()
 
 	initialized = true;
 	Info("Render: Directx device created.");
+}
+
+//=================================================================================================
+void Render::CreateDeviceAndSwapChain()
+{
+	const Int2& wnd_size = app::engine->GetWindowSize();
+
+	DXGI_SWAP_CHAIN_DESC swap_desc = {};
+	swap_desc.BufferCount = 1;
+	swap_desc.BufferDesc.Width = wnd_size.x;
+	swap_desc.BufferDesc.Height = wnd_size.y;
+	swap_desc.BufferDesc.Format = DISPLAY_FORMAT;
+	swap_desc.BufferDesc.RefreshRate.Numerator = 0;
+	swap_desc.BufferDesc.RefreshRate.Denominator = 1;
+	swap_desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+	swap_desc.OutputWindow = app::engine->GetWindowHandle();
+	swap_desc.SampleDesc.Count = 1;
+	swap_desc.SampleDesc.Quality = 0;
+	swap_desc.Windowed = true;
+	swap_desc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+	swap_desc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+
+	int flags = 0;
+#ifdef _DEBUG
+	flags |= D3D11_CREATE_DEVICE_DEBUG;
+#endif
+
+	D3D_FEATURE_LEVEL feature_levels[] = { D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_1, D3D_FEATURE_LEVEL_10_0 };
+	D3D_FEATURE_LEVEL feature_level;
+	HRESULT result = D3D11CreateDeviceAndSwapChain(adapter, D3D_DRIVER_TYPE_UNKNOWN, nullptr, flags, feature_levels, countof(feature_levels),
+		D3D11_SDK_VERSION, &swap_desc, &swap_chain, &device, &feature_level, &device_context);
+	if(FAILED(result))
+		throw Format("Failed to create device and swap chain (%u).", result);
+
+	Info("Created device with '%s' feature level.", GetFeatureLevelString(feature_level));
+	if(feature_level == D3D_FEATURE_LEVEL_11_0)
+	{
+		vs_target_version = "vs_5_0";
+		ps_target_version = "ps_5_0";
+	}
+	else
+	{
+		vs_target_version = "vs_4_0";
+		ps_target_version = "ps_4_0";
+	}
+
+	// disable alt+enter
+	C(factory->MakeWindowAssociation(swap_desc.OutputWindow, DXGI_MWA_NO_WINDOW_CHANGES));
 }
 
 //=================================================================================================

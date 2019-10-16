@@ -37,7 +37,8 @@ struct Font : public Resource
 		uint begin, end, count, width;
 	};
 
-	TEX tex, texOutline;
+	FIXME;
+	//TEX tex, texOutline;
 	int height;
 	float outline_shift;
 	Glyph glyph[256];

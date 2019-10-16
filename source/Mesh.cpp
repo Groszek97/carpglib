@@ -24,23 +24,25 @@ const int DefaultSpecularHardness = 10;
 //=================================================================================================
 // Konstruktor Mesh
 //=================================================================================================
-Mesh::Mesh() : vb(nullptr), ib(nullptr), vertex_decl(VDI_DEFAULT)
+Mesh::Mesh() : /*vb(nullptr), ib(nullptr),*/ vertex_decl(VDI_DEFAULT)
 {
 }
+FIXME;
 
 //=================================================================================================
 // Destruktor Mesh
 //=================================================================================================
 Mesh::~Mesh()
 {
-	SafeRelease(vb);
-	SafeRelease(ib);
+	/*SafeRelease(vb);
+	SafeRelease(ib);*/
+	FIXME;
 }
 
 //=================================================================================================
 // Wczytywanie modelu z pliku
 //=================================================================================================
-void Mesh::Load(StreamReader& stream, IDirect3DDevice9* device)
+/*void Mesh::Load(StreamReader& stream, IDirect3DDevice9* device)
 {
 	assert(device);
 
@@ -233,13 +235,15 @@ void Mesh::Load(StreamReader& stream, IDirect3DDevice9* device)
 		stream.Read(splits.data(), size);
 	}
 }
-
+*/
+FIXME;
 //=================================================================================================
 // Load metadata only from mesh (points)
 void Mesh::LoadMetadata(StreamReader& stream)
 {
-	if(vb)
-		return;
+	FIXME;
+	//if(vb)
+	//	return;
 	LoadHeader(stream);
 	stream.SetPos(head.points_offset);
 	LoadPoints(stream);

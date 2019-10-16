@@ -1,5 +1,7 @@
 #include "EnginePch.h"
 #include "EngineCore.h"
+FIXME;
+#if 0
 #include "SuperShader.h"
 #include "File.h"
 #include "Render.h"
@@ -187,3 +189,4 @@ ID3DXEffect* SuperShader::CompileShader(uint id)
 
 	return s.e;
 }
+#endif

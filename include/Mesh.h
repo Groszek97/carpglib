@@ -144,7 +144,7 @@ struct Mesh : public Resource
 	static void MeshInit();
 
 	void SetupBoneMatrices();
-	void Load(StreamReader& stream, IDirect3DDevice9* device);
+	//void Load(StreamReader& stream, IDirect3DDevice9* device);
 	void LoadMetadata(StreamReader& stream);
 	void LoadHeader(StreamReader& stream);
 	void SetVertexSizeDecl();
@@ -155,7 +155,7 @@ struct Mesh : public Resource
 	Animation* GetAnimation(cstring name);
 	Bone* GetBone(cstring name);
 	Point* GetPoint(cstring name);
-	TEX GetTexture(uint idx) const
+	/*TEX GetTexture(uint idx) const
 	{
 		assert(idx < head.n_subs && subs[idx].tex && subs[idx].tex->tex);
 		return subs[idx].tex->tex;
@@ -166,7 +166,7 @@ struct Mesh : public Resource
 			return tex_override[index].diffuse->tex;
 		else
 			return GetTexture(index);
-	}
+	}*/
 
 	bool IsAnimated() const { return IsSet(head.flags, F_ANIMATED); }
 	bool IsStatic() const { return IsSet(head.flags, F_STATIC); }
@@ -177,8 +177,8 @@ struct Mesh : public Resource
 	Point* FindNextPoint(cstring name, Point* point);
 
 	Header head;
-	VB vb;
-	IB ib;
+	/*VB vb;
+	IB ib;*/
 	VertexDeclarationId vertex_decl;
 	uint vertex_size;
 	vector<Submesh> subs;
@@ -189,3 +189,4 @@ struct Mesh : public Resource
 	vector<BoneGroup> groups;
 	vector<Split> splits;
 };
+FIXME;

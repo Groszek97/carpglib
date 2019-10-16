@@ -1,5 +1,7 @@
 #include "EnginePch.h"
 #include "EngineCore.h"
+FIXME;
+#if 0
 #include "DebugDrawer.h"
 #include "Render.h"
 #include "CameraBase.h"
@@ -135,3 +137,4 @@ void DebugDrawer::EndBatch()
 
 	verts.clear();
 }
+#endif

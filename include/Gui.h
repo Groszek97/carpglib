@@ -164,7 +164,8 @@ public:
 	void DrawSpriteRect(Texture* t, const Rect& rect, Color color = Color::White);
 	bool HaveDialog(cstring name);
 	bool HaveDialog(DialogBox* dialog);
-	IDirect3DDevice9* GetDevice() { return device; }
+	//IDirect3DDevice9* GetDevice() { return device; }
+	FIXME; // po co to tu
 	bool AnythingVisible() const;
 	void OnResize();
 	void DrawSpriteRectPart(Texture* t, const Rect& rect, const Rect& part, Color color = Color::White);
@@ -237,24 +238,24 @@ private:
 	void Lock(bool outline = false);
 	void Flush(bool lock = false);
 	void SkipLine(cstring text, uint line_begin, uint line_end, HitboxContext* hc);
-	bool CreateFontInternal(Font* font, ID3DXFont* dx_font, int tex_size, int outline, int max_outline);
-	int TryCreateFontInternal(Font* font, ID3DXFont* dx_font, int tex_size, int outline, int max_outline);
+	//bool CreateFontInternal(Font* font, ID3DXFont* dx_font, int tex_size, int outline, int max_outline);
+	//int TryCreateFontInternal(Font* font, ID3DXFont* dx_font, int tex_size, int outline, int max_outline);
 	void AddRect(const Vec2& left_top, const Vec2& right_bottom, const Vec4& color);
 
-	IDirect3DDevice9* device;
+	/*IDirect3DDevice9* device;
 	ID3DXSprite* sprite;
 	TEX tFontTarget;
-	TEX tSet, tCurrent, tCurrent2, tPixel;
+	TEX tSet, tCurrent, tCurrent2, tPixel;*/
 	int max_tex_size;
 	vector<DialogBox*> created_dialogs;
-	ID3DXEffect* effect;
+	/*ID3DXEffect* effect;
 	D3DXHANDLE techGui, techGui2, techGuiGrayscale;
-	D3DXHANDLE hGuiSize, hGuiTex;
+	D3DXHANDLE hGuiSize, hGuiTex;*/
 	Container* layer, *dialog_layer;
 	VParticle* v, *v2;
 	uint in_buffer, in_buffer2;
 	Vec4 color_table[6];
-	VB vb, vb2;
+	//VB vb, vb2;
 	HitboxContext tmpHitboxContext;
 	vector<OnCharHandler*> on_char;
 	bool vb2_locked, grayscale;
@@ -262,5 +263,5 @@ private:
 	Layout* master_layout;
 	layout::Gui* layout;
 	Overlay* overlay;
-	IDirect3DVertexDeclaration9* vertex_decl;
+	//IDirect3DVertexDeclaration9* vertex_decl;
 };
