@@ -261,6 +261,9 @@
     <ClInclude Include="include\Entity.h">
       <Filter>entity</Filter>
     </ClInclude>
+    <ClInclude Include="include\AppEntry.h">
+      <Filter>components</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source\BoxToBox.cpp">

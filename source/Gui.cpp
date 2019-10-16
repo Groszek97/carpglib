@@ -23,9 +23,12 @@ master_layout(nullptr), layout(nullptr), overlay(nullptr), grayscale(false), ver
 //=================================================================================================
 Gui::~Gui()
 {
+	OnRelease();
 	DeleteElements(created_dialogs);
 	SafeRelease(tPixel);
 	delete master_layout;
+	delete layer;
+	delete dialog_layer;
 }
 
 //=================================================================================================

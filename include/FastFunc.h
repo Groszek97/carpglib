@@ -1,14 +1,6 @@
 // https://gist.github.com/jwakely/6465273
 #pragma once
 
-#include <cstring>
-#include <type_traits>
-#include <cassert>
-#include <cstddef>
-#include <memory>
-#include <new>
-#include <utility>
-
 namespace ssvu
 {
 	namespace Internal

@@ -34,6 +34,8 @@ constexpr size_t countof(T(&)[N]) { return N; }
 #	define C(x) assert(x)
 #	define DEBUG_BOOL true
 #else
+#	undef assert
+#	define assert(x) do { (void)sizeof(x);} while (0)
 #	define DEBUG_DO(x)
 #	define C(x) x
 #	define DEBUG_BOOL false
