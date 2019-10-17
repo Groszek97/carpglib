@@ -42,22 +42,25 @@ public:
 	~Render();
 	void Init();
 	void Draw(bool call_present = true);
-	bool CheckDisplay(const Int2& size, int& hz); // dla zera zwraca najlepszy hz
 	void RegisterShader(ShaderHandler* shader);
 	//ID3DXEffect* CompileShader(cstring name);
 	//ID3DXEffect* CompileShader(CompileShaderParams& params);
 	//TEX CreateTexture(const Int2& size);
 	//RenderTarget* CreateRenderTarget(const Int2& size);
 	//Texture* CopyToTexture(RenderTarget* target);
+
 	bool IsMultisamplingEnabled() const { return multisampling != 0; }
 	bool IsVsyncEnabled() const { return vsync; }
-	//IDirect3DDevice9* GetDevice() const { return device; }
+
+	ID3D11Device* GetDevice() const { return device; }
+	ID3D11DeviceContext* GetDeviceContext() const { return device_context; }
 	void GetMultisampling(int& ms, int& msq) const { ms = multisampling; msq = multisampling_quality; }
 	void GetResolutions(vector<Resolution>& v) const;
 	void GetMultisamplingModes(vector<Int2>& v) const;
 	vector<ShaderHandler*>& GetShaders() { return shaders; }
 	const string& GetShadersDir() const { return shaders_dir; }
 	//IDirect3DVertexDeclaration9* GetVertexDeclaration(VertexDeclarationId id) { return vertex_decl[id]; }
+
 	void SetAlphaBlend(bool use_alphablend);
 	void SetAlphaTest(bool use_alphatest);
 	void SetNoCulling(bool use_nocull);
@@ -69,6 +72,7 @@ public:
 	void SetShadersDir(cstring dir) { shaders_dir = dir; }
 
 	void OnChangeResolution();
+	void Init2();
 
 private:
 	void CreateAdapter();
@@ -77,7 +81,6 @@ private:
 	void CreateRenderTarget();
 	void CreateDepthStencilView();
 	void SetViewport();
-	void InitTmp();
 	ID3DBlob* CompileShader(cstring filename, cstring entry, bool is_vertex);
 	ID3D11Buffer* CreateConstantBuffer(uint size);
 
@@ -102,6 +105,8 @@ private:
 	ID3D11InputLayout* layout;
 	ID3D11Buffer* vs_buffer;
 	ID3D11Buffer* vb;
+	ID3D11SamplerState* sampler;
+	Texture* tex;
 
 	/*ID3D11DepthStencilState* depth_state[DEPTH_MAX];
 	ID3D11RasterizerState* raster_state[RASTER_MAX];

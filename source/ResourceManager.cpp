@@ -6,7 +6,7 @@
 #include "SoundManager.h"
 #include "Pak.h"
 #include "Render.h"
-#include "DirectX.h"
+#include "WICTextureLoader.h"
 
 ResourceManager* app::res_mgr;
 
@@ -626,25 +626,16 @@ void ResourceManager::LoadSoundOrMusic(Sound* sound)
 //=================================================================================================
 void ResourceManager::LoadTexture(Texture* tex)
 {
-	/*IDirect3DDevice9* device = app::render->GetDevice();
 	HRESULT hr;
-
 	if(tex->IsFile())
-	{
-		hr = D3DXCreateTextureFromFile(device, tex->path.c_str(), &tex->tex);
-		if(FAILED(hr))
-		{
-			Sleep(250);
-			hr = D3DXCreateTextureFromFile(device, tex->path.c_str(), &tex->tex);
-		}
-	}
+		hr = CreateWICTextureFromFile(app::render->GetDevice(), app::render->GetDeviceContext(), ToWString(tex->path.c_str()), nullptr, &tex->view);
 	else
 	{
 		BufferHandle&& buf = tex->GetBuffer();
-		hr = D3DXCreateTextureFromFileInMemory(device, buf->Data(), buf->Size(), &tex->tex);
+		hr = CreateWICTextureFromMemory(app::render->GetDevice(), app::render->GetDeviceContext(),
+			static_cast<byte*>(buf->Data()), buf->Size(), nullptr, &tex->view);
 	}
 
 	if(FAILED(hr))
-		throw Format("Failed to load texture '%s' (%u).", tex->GetPath(), hr);*/
-	FIXME;
+		throw Format("Failed to load texture '%s' (%u).", tex->GetPath(), hr);
 }

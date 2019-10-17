@@ -6,9 +6,10 @@
 #include "ShaderHandler.h"
 #include "File.h"
 #include "App.h"
-//#include <d3d11_1.h>
 #include "DirectX.h"
 #include <d3dcompiler.h>
+//
+#include "ResourceManager.h"
 
 Render* app::render;
 const DXGI_FORMAT DISPLAY_FORMAT = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -50,6 +51,7 @@ Render::~Render()
 	SafeRelease(layout);
 	SafeRelease(vs_buffer);
 	SafeRelease(vb);
+	SafeRelease(sampler);
 
 	SafeRelease(depth_stencil_view);
 	SafeRelease(render_target);
@@ -221,7 +223,6 @@ void Render::Init()
 	CreateDeviceAndSwapChain();
 	CreateSizeDependentResources();
 	device_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	InitTmp();
 }
 
 //=================================================================================================
@@ -608,6 +609,8 @@ void Render::Draw(bool call_present)
 	device_context->IASetInputLayout(layout);
 	device_context->VSSetShader(vertex_shader, nullptr, 0);
 	device_context->PSSetShader(pixel_shader, nullptr, 0);
+	device_context->PSSetSamplers(0, 1, &sampler);
+	device_context->PSSetShaderResources(0, 1, &tex->view);
 
 	Matrix mat_world = Matrix::RotationY(rot),
 		mat_view = Matrix::CreateLookAt(Vec3(0, 0, -2), Vec3(0, 0, 0)),
@@ -621,57 +624,13 @@ void Render::Draw(bool call_present)
 	device_context->Unmap(vs_buffer, 0);
 	device_context->VSSetConstantBuffers(0, 1, &vs_buffer);
 
-	uint stride = sizeof(Vec3) + sizeof(Vec4),
+	uint stride = sizeof(Vec3) + sizeof(Vec2) + sizeof(Vec4),
 		offset = 0;
 	device_context->IASetVertexBuffers(0, 1, &vb, &stride, &offset);
 
 	device_context->Draw(6, 0);
 
 	V(swap_chain->Present(vsync ? 1 : 0, 0));
-}
-
-//=================================================================================================
-bool Render::CheckDisplay(const Int2& size, int& hz)
-{
-	/*assert(size.x >= Engine::MIN_WINDOW_SIZE.x && size.x >= Engine::MIN_WINDOW_SIZE.y);
-
-	// check minimum resolution
-	if(size.x < Engine::MIN_WINDOW_SIZE.x || size.y < Engine::MIN_WINDOW_SIZE.y)
-		return false;
-
-	uint display_modes = d3d->GetAdapterModeCount(used_adapter, DISPLAY_FORMAT);
-
-	if(hz == 0)
-	{
-		bool valid = false;
-
-		for(uint i = 0; i < display_modes; ++i)
-		{
-			D3DDISPLAYMODE d_mode;
-			V(d3d->EnumAdapterModes(used_adapter, DISPLAY_FORMAT, i, &d_mode));
-			if(size.x == d_mode.Width && size.y == d_mode.Height)
-			{
-				valid = true;
-				if(hz < (int)d_mode.RefreshRate)
-					hz = d_mode.RefreshRate;
-			}
-		}
-
-		return valid;
-	}
-	else
-	{
-		for(uint i = 0; i < display_modes; ++i)
-		{
-			D3DDISPLAYMODE d_mode;
-			V(d3d->EnumAdapterModes(used_adapter, DISPLAY_FORMAT, i, &d_mode));
-			if(size.x == d_mode.Width && size.y == d_mode.Height && hz == d_mode.RefreshRate)
-				return true;
-		}
-
-		return false;
-	}*/
-	return false;
 }
 
 //=================================================================================================
@@ -1072,7 +1031,7 @@ void Render::SetTextureAddressMode(TextureAddressMode mode)
 	V(device->SetSamplerState(0, D3DSAMP_ADDRESSV, (D3DTEXTUREADDRESS)mode));*/
 }
 
-void Render::InitTmp()
+void Render::Init2()
 {
 	ID3DBlob* vs_buf = CompileShader("test.hlsl", "vs_main", true);
 	HRESULT result = device->CreateVertexShader(vs_buf->GetBufferPointer(), vs_buf->GetBufferSize(), nullptr, &vertex_shader);
@@ -1087,6 +1046,7 @@ void Render::InitTmp()
 	// create layout
 	D3D11_INPUT_ELEMENT_DESC desc[] = {
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 }
 	};
 	result = device->CreateInputLayout(desc, countof(desc), vs_buf->GetBufferPointer(), vs_buf->GetBufferSize(), &layout);
@@ -1103,15 +1063,16 @@ void Render::InitTmp()
 	struct VerTex
 	{
 		Vec3 pos;
+		Vec2 tex;
 		Vec4 color;
 	};
 	VerTex data[6] = {
-		{ Vec3(-0.5f, -0.5f, 0.f), Vec4(1,0,0,1)},
-		{Vec3(0,0.5f,0), Vec4(0,1,0,1)},
-		{Vec3(0.5f,-0.5f,0), Vec4(0,0,1,1)},
-		{ Vec3(-0.5f, -0.5f, 0.f), Vec4(1,0,0,1)},
-		{Vec3(0.5f,-0.5f,0), Vec4(0,0,1,1)},
-		{Vec3(0,0.5f,0), Vec4(0,1,0,1)}
+		{ Vec3(-0.5f, -0.5f, 0.f), Vec2(0,0), Vec4(1,0,0,1)},
+		{ Vec3(0,0.5f,0), Vec2(0.5f,1), Vec4(0,1,0,1)},
+		{ Vec3(0.5f,-0.5f,0), Vec2(1,0), Vec4(0,0,1,1)},
+		{ Vec3(-0.5f, -0.5f, 0.f), Vec2(0,0), Vec4(1,0,0,1)},
+		{ Vec3(0.5f,-0.5f,0), Vec2(1,0), Vec4(0,0,1,1)},
+		{ Vec3(0,0.5f,0), Vec2(0.5f,1), Vec4(0,1,0,1)}
 	};
 
 	D3D11_BUFFER_DESC v_desc;
@@ -1128,6 +1089,29 @@ void Render::InitTmp()
 	result = device->CreateBuffer(&v_desc, &v_data, &vb);
 	if(FAILED(result))
 		throw Format("Failed to create vertex buffer (%u).", result);
+
+	app::res_mgr->AddDir("data");
+	tex = app::res_mgr->Load<Texture>("woodmgrid1a.jpg");
+
+	// create texture sampler
+	D3D11_SAMPLER_DESC sampler_desc;
+	sampler_desc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+	sampler_desc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+	sampler_desc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+	sampler_desc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+	sampler_desc.MipLODBias = 0.0f;
+	sampler_desc.MaxAnisotropy = 1;
+	sampler_desc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
+	sampler_desc.BorderColor[0] = 0;
+	sampler_desc.BorderColor[1] = 0;
+	sampler_desc.BorderColor[2] = 0;
+	sampler_desc.BorderColor[3] = 0;
+	sampler_desc.MinLOD = 0;
+	sampler_desc.MaxLOD = D3D11_FLOAT32_MAX;
+
+	result = device->CreateSamplerState(&sampler_desc, &sampler);
+	if(FAILED(result))
+		throw Format("Failed to create sampler state (%u).", result);
 
 	// over and out
 

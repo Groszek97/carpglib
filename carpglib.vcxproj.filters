@@ -264,6 +264,9 @@
     <ClInclude Include="include\RenderTarget2.h">
       <Filter>entity</Filter>
     </ClInclude>
+    <ClInclude Include="include\WICTextureLoader.h">
+      <Filter>loaders</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source\BoxToBox.cpp">
@@ -480,6 +483,9 @@
     <ClCompile Include="source\Engine.cpp">
       <Filter>components</Filter>
     </ClCompile>
+    <ClCompile Include="source\WICTextureLoader.cpp">
+      <Filter>loaders</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="core">
@@ -505,6 +511,9 @@
     </Filter>
     <Filter Include="components">
       <UniqueIdentifier>{ed81dba0-00e0-4480-850f-eecdfe99c249}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="loaders">
+      <UniqueIdentifier>{6d44878c-87c6-47ca-9a83-393ca2317308}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

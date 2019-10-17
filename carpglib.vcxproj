@@ -98,6 +98,7 @@
     <ClInclude Include="include\TreeView.h" />
     <ClInclude Include="include\VertexData.h" />
     <ClInclude Include="include\VertexDeclaration.h" />
+    <ClInclude Include="include\WICTextureLoader.h" />
     <ClInclude Include="include\Window.h" />
     <ClInclude Include="include\WindowsIncludes.h" />
   </ItemGroup>
@@ -179,6 +180,7 @@
     <ClCompile Include="source\TooltipController.cpp" />
     <ClCompile Include="source\TreeView.cpp" />
     <ClCompile Include="source\VertexData.cpp" />
+    <ClCompile Include="source\WICTextureLoader.cpp" />
     <ClCompile Include="source\Window.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
