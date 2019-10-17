@@ -55,22 +55,20 @@ public:
 	void GetMultisampling(int& ms, int& msq) const { ms = multisampling; msq = multisampling_quality; }
 	void GetResolutions(vector<Resolution>& v) const;
 	void GetMultisamplingModes(vector<Int2>& v) const;
-	int GetRefreshRate() const { return refresh_hz; }
 	vector<ShaderHandler*>& GetShaders() { return shaders; }
-	int GetShaderVersion() const { return shader_version; }
 	const string& GetShadersDir() const { return shaders_dir; }
 	//IDirect3DVertexDeclaration9* GetVertexDeclaration(VertexDeclarationId id) { return vertex_decl[id]; }
 	void SetAlphaBlend(bool use_alphablend);
 	void SetAlphaTest(bool use_alphatest);
 	void SetNoCulling(bool use_nocull);
 	void SetNoZWrite(bool use_nozwrite);
-	void SetVsync(bool vsync);
+	void SetVsync(bool vsync) { this->vsync = vsync; }
 	int SetMultisampling(int type, int quality);
-	void SetRefreshRateInternal(int refresh_hz) { this->refresh_hz = refresh_hz; }
-	void SetShaderVersion(int shader_version) { this->shader_version = shader_version; }
 	void SetTarget(RenderTarget* target);
 	void SetTextureAddressMode(TextureAddressMode mode);
 	void SetShadersDir(cstring dir) { shaders_dir = dir; }
+
+	void OnChangeResolution();
 
 private:
 	void CreateAdapter();
@@ -84,7 +82,6 @@ private:
 	ID3D11Buffer* CreateConstantBuffer(uint size);
 
 	//
-	//void GatherParams(D3DPRESENT_PARAMETERS& d3dpp);
 	void LogMultisampling();
 	void LogAndSelectResolution();
 	void SetDefaultRenderState();
@@ -118,7 +115,7 @@ private:
 	//SURFACE current_surf;
 	string shaders_dir;
 	Int2 wnd_size;
-	int shader_version, refresh_hz, multisampling, multisampling_quality;
+	int multisampling, multisampling_quality;
 	bool initialized, vsync, r_alphatest, r_nozwrite, r_nocull, r_alphablend;
 
 	Timer t;

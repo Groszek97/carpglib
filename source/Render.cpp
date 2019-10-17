@@ -15,12 +15,7 @@ const DXGI_FORMAT DISPLAY_FORMAT = DXGI_FORMAT_R8G8B8A8_UNORM;
 
 //=================================================================================================
 Render::Render() : initialized(false), factory(nullptr), adapter(nullptr), swap_chain(nullptr), device(nullptr), device_context(nullptr),
-render_target(nullptr), depth_stencil_view(nullptr),
-
-
-/*current_target(nullptr), current_surf(nullptr),*/
-vsync(true),
-shaders_dir("shaders"), refresh_hz(0), shader_version(-1), /*used_adapter(0), used_output(0),*/ multisampling(0), multisampling_quality(0)
+render_target(nullptr), depth_stencil_view(nullptr), vsync(true), shaders_dir("shaders"), multisampling(0), multisampling_quality(0)
 {
 	//for(int i = 0; i < VDI_MAX; ++i)
 	//	vertex_decl[i] = nullptr;
@@ -48,10 +43,13 @@ Render::~Render()
 	{
 		device->SetStreamSource(0, nullptr, 0, 0);
 		device->SetIndices(nullptr);
-	}
-	SafeRelease(sprite);
-	SafeRelease(device);
-	SafeRelease(d3d);*/
+	}*/
+
+	SafeRelease(vertex_shader);
+	SafeRelease(pixel_shader);
+	SafeRelease(layout);
+	SafeRelease(vs_buffer);
+	SafeRelease(vb);
 
 	SafeRelease(depth_stencil_view);
 	SafeRelease(render_target);
@@ -355,26 +353,6 @@ void Render::SetViewport()
 
 	device_context->RSSetViewports(1, &viewport);
 }
-
-
-//=================================================================================================
-/*void Render::GatherParams(D3DPRESENT_PARAMETERS& d3dpp)
-{
-	d3dpp.Windowed = !app::engine->IsFullscreen();
-	d3dpp.BackBufferCount = 1;
-	d3dpp.BackBufferFormat = BACKBUFFER_FORMAT;
-	d3dpp.BackBufferWidth = app::engine->GetWindowSize().x;
-	d3dpp.BackBufferHeight = app::engine->GetWindowSize().y;
-	d3dpp.EnableAutoDepthStencil = TRUE;
-	d3dpp.MultiSampleType = (D3DMULTISAMPLE_TYPE)multisampling;
-	d3dpp.MultiSampleQuality = multisampling_quality;
-	d3dpp.hDeviceWindow = app::engine->GetWindowHandle();
-	d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
-	d3dpp.AutoDepthStencilFormat = ZBUFFER_FORMAT;
-	d3dpp.Flags = 0;
-	d3dpp.PresentationInterval = (vsync ? D3DPRESENT_INTERVAL_ONE : D3DPRESENT_INTERVAL_IMMEDIATE);
-	d3dpp.FullScreen_RefreshRateInHz = (d3dpp.Windowed ? 0 : refresh_hz);
-}*/
 
 //=================================================================================================
 void Render::LogMultisampling()
@@ -973,17 +951,6 @@ void Render::SetNoZWrite(bool use_nozwrite)
 }
 
 //=================================================================================================
-void Render::SetVsync(bool new_vsync)
-{
-	if(new_vsync == vsync)
-		return;
-
-	vsync = new_vsync;
-	//if(initialized)
-		;// Reset(true);
-}
-
-//=================================================================================================
 int Render::SetMultisampling(int type, int level)
 {
 	/*if(type == multisampling && (level == -1 || level == multisampling_quality))
@@ -1225,4 +1192,21 @@ ID3D11Buffer* Render::CreateConstantBuffer(uint size)
 		throw Format("Failed to create constant buffer (size:%u; code:%u).", size, result);
 
 	return buffer;
+}
+
+void Render::OnChangeResolution()
+{
+	const Int2& wnd_size = app::engine->GetWindowSize();
+
+	if(this->wnd_size == wnd_size || !swap_chain)
+		return;
+
+	this->wnd_size = wnd_size;
+
+	render_target->Release();
+	depth_stencil_view->Release();
+
+	V(swap_chain->ResizeBuffers(1, wnd_size.x, wnd_size.y, DISPLAY_FORMAT, DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH));
+
+	CreateSizeDependentResources();
 }

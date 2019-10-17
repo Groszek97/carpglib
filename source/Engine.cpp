@@ -13,13 +13,13 @@
 //-----------------------------------------------------------------------------
 App* app::app;
 Engine* app::engine;
-const Int2 Engine::MIN_WINDOW_SIZE = Int2(800, 600);
-const Int2 Engine::DEFAULT_WINDOW_SIZE = Int2(1024, 768);
+constexpr int WINDOWED_FLAGS = WS_OVERLAPPEDWINDOW ^ WS_THICKFRAME;
+constexpr int FULLSCREEN_FLAGS = WS_POPUP;
 
 //=================================================================================================
 Engine::Engine() : initialized(false), shutdown(false), timer(false), hwnd(nullptr), cursor_visible(true), replace_cursor(false), locked_cursor(true),
 active(false), activation_point(-1, -1), phy_world(nullptr), title("Window"), force_pos(-1, -1), force_size(-1, -1), hidden_window(false),
-wnd_size(DEFAULT_WINDOW_SIZE)
+wnd_size(1024, 768), in_resize(false), client_size(wnd_size)
 {
 	if(!Logger::GetInstance())
 		Logger::SetInstance(new Logger);
@@ -43,104 +43,12 @@ void Engine::AdjustWindowSize()
 {
 	if(!fullscreen)
 	{
-		Rect rect = Rect::Create(Int2(0, 0), wnd_size);
-		AdjustWindowRect((RECT*)&rect, WS_OVERLAPPEDWINDOW, false);
+		Rect rect = Rect::Create(Int2::Zero, wnd_size);
+		AdjustWindowRect((RECT*)&rect, WINDOWED_FLAGS, false);
 		real_size = rect.Size();
 	}
 	else
 		real_size = wnd_size;
-}
-
-//=================================================================================================
-// Called after changing mode
-void Engine::ChangeMode()
-{
-	AdjustWindowSize();
-
-	if(!fullscreen)
-	{
-		// windowed
-		SetWindowLong(hwnd, GWL_STYLE, WS_OVERLAPPEDWINDOW);
-		SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOZORDER | SWP_NOSIZE);
-
-		//app::render->Reset(true);
-		FIXME;
-
-		SetWindowPos(hwnd, HWND_NOTOPMOST, (GetSystemMetrics(SM_CXSCREEN) - real_size.x) / 2, (GetSystemMetrics(SM_CYSCREEN) - real_size.y) / 2,
-			real_size.x, real_size.y, SWP_SHOWWINDOW | SWP_DRAWFRAME);
-	}
-	else
-	{
-		// fullscreen
-		SetWindowLong(hwnd, GWL_STYLE, WS_POPUPWINDOW);
-		SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOZORDER | SWP_NOSIZE);
-
-		//app::render->Reset(true);
-		FIXME;
-
-		SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, real_size.x, real_size.y, SWP_NOMOVE | SWP_SHOWWINDOW);
-	}
-
-	// reset cursor
-	replace_cursor = true;
-	app::input->UpdateMouseDif(Int2::Zero);
-	unlock_point = real_size / 2;
-}
-
-//=================================================================================================
-// Change display mode
-bool Engine::ChangeMode(bool new_fullscreen)
-{
-	if(fullscreen == new_fullscreen)
-		return false;
-
-	Info(new_fullscreen ? "Engine: Changing mode to fullscreen." : "Engine: Changing mode to windowed.");
-
-	fullscreen = new_fullscreen;
-	ChangeMode();
-
-	return true;
-}
-
-//=================================================================================================
-// Change resolution and display mode
-bool Engine::ChangeMode(Int2 size, bool new_fullscreen, int hz)
-{
-	if(size == Int2::Zero)
-		size = wnd_size;
-
-	assert(size.x > 0 && size.y > 0 && hz >= 0);
-
-	if(size == wnd_size && new_fullscreen == fullscreen && hz == app::render->GetRefreshRate())
-		return false;
-
-	if(!initialized)
-	{
-		fullscreen = new_fullscreen;
-		wnd_size = size;
-		app::render->SetRefreshRateInternal(hz);
-		return true;
-	}
-
-	if(!app::render->CheckDisplay(size, hz))
-	{
-		Error("Engine: Can't change display mode to %dx%d (%d Hz, %s).", size.x, size.y, hz, new_fullscreen ? "fullscreen" : "windowed");
-		return false;
-	}
-
-	Info("Engine: Resolution changed to %dx%d (%d Hz, %s).", size.x, size.y, hz, new_fullscreen ? "fullscreen" : "windowed");
-
-	bool size_changed = (wnd_size != size);
-
-	fullscreen = new_fullscreen;
-	wnd_size = size;
-	app::render->SetRefreshRateInternal(hz);
-	ChangeMode();
-
-	if(size_changed)
-		app::app->OnResize();
-
-	return true;
 }
 
 //=================================================================================================
@@ -295,7 +203,7 @@ long Engine::HandleEvent(HWND in_hwnd, uint msg, uint wParam, long lParam)
 
 	// window size change
 	case WM_SIZE:
-		/*if(wParam == SIZE_MAXIMIZED)
+		if(wParam == SIZE_MAXIMIZED)
 			SetFullscreen(true);
 		else if(wParam != SIZE_MINIMIZED)
 		{
@@ -309,8 +217,8 @@ long Engine::HandleEvent(HWND in_hwnd, uint msg, uint wParam, long lParam)
 				client_size = Int2(rect.right - rect.left, rect.bottom - rect.top);
 			}
 
-			engine->OnChangeResolution(client_size);
-		}*/
+			app::render->OnChangeResolution();
+		}
 		return 0;
 
 	// handle keyboard
@@ -440,7 +348,7 @@ bool Engine::MsgToKey(uint msg, uint wParam, byte& key, int& result)
 // Create window
 void Engine::InitWindow()
 {
-	wnd_size = Int2::Max(wnd_size, MIN_WINDOW_SIZE);
+	wnd_size = Int2::Max(wnd_size, Int2(1024, 768));
 
 	// register window class
 	WNDCLASSEX wc = {
@@ -460,7 +368,12 @@ void Engine::InitWindow()
 		throw Format("Failed to create window (%d).", GetLastError());
 
 	// position window
-	if(!fullscreen)
+	if(fullscreen)
+	{
+		fullscreen = false;
+		SetFullscreen(true);
+	}
+	else
 	{
 		if(force_pos != Int2(-1, -1) || force_size != Int2(-1, -1))
 		{
@@ -503,11 +416,9 @@ void Engine::InitWindow()
 // Place cursor on window center
 void Engine::PlaceCursor()
 {
-	POINT p;
-	p.x = real_size.x / 2;
-	p.y = real_size.y / 2;
-	ClientToScreen(hwnd, &p);
-	SetCursorPos(p.x, p.y);
+	POINT dest_pt = { client_size.x / 2, client_size.y / 2 };
+	ClientToScreen((HWND)hwnd, &dest_pt);
+	SetCursorPos(dest_pt.x, dest_pt.y);
 }
 
 //=================================================================================================
@@ -719,4 +630,59 @@ void Engine::SetWindowSizeInternal(const Int2& size)
 	AdjustWindowSize();
 	SetWindowPos(hwnd, HWND_NOTOPMOST, (GetSystemMetrics(SM_CXSCREEN) - real_size.x) / 2, (GetSystemMetrics(SM_CYSCREEN) - real_size.y) / 2,
 		real_size.x, real_size.y, SWP_SHOWWINDOW | SWP_DRAWFRAME);
+}
+
+//=================================================================================================
+void Engine::SetFullscreen(bool fullscreen)
+{
+	if(this->fullscreen == fullscreen)
+		return;
+	this->fullscreen = fullscreen;
+	if(!hwnd)
+		return;
+	in_resize = true;
+	if(fullscreen)
+	{
+		client_size = Int2(GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN));
+		real_size = client_size;
+		SetWindowLong((HWND)hwnd, GWL_STYLE, FULLSCREEN_FLAGS);
+		SetWindowPos((HWND)hwnd, HWND_NOTOPMOST,
+			0, 0,
+			client_size.x, client_size.y,
+			SWP_FRAMECHANGED | SWP_NOACTIVATE);
+		ShowWindow((HWND)hwnd, SW_MAXIMIZE);
+	}
+	else
+	{
+		client_size = wnd_size;
+		AdjustWindowSize();
+		SetWindowLong((HWND)hwnd, GWL_STYLE, WINDOWED_FLAGS);
+		SetWindowPos((HWND)hwnd, HWND_NOTOPMOST,
+			(GetSystemMetrics(SM_CXSCREEN) - real_size.x) / 2,
+			(GetSystemMetrics(SM_CYSCREEN) - real_size.y) / 2,
+			real_size.x, real_size.y,
+			SWP_FRAMECHANGED | SWP_NOACTIVATE);
+		ShowWindow((HWND)hwnd, SW_NORMAL);
+	}
+	in_resize = false;
+}
+
+//=================================================================================================
+void Engine::SetWindowSize(const Int2& wnd_size)
+{
+	if(this->wnd_size == wnd_size)
+		return;
+	this->wnd_size = wnd_size;
+	if(!hwnd)
+		return;
+	if(!fullscreen)
+	{
+		client_size = wnd_size;
+		AdjustWindowSize();
+		SetWindowPos((HWND)hwnd, HWND_NOTOPMOST,
+			(GetSystemMetrics(SM_CXSCREEN) - real_size.x) / 2,
+			(GetSystemMetrics(SM_CYSCREEN) - real_size.y) / 2,
+			real_size.x, real_size.y,
+			SWP_NOACTIVATE);
+	}
 }
