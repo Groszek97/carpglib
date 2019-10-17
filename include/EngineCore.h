@@ -93,12 +93,20 @@ typedef HWND__* HWND;
 //typedef IDirect3DTexture9* TEX;
 //typedef IDirect3DVertexBuffer9* VB;
 FIXME;
+struct ID3D10Blob;
+struct ID3D11Buffer;
+struct ID3D11DepthStencilView;
 struct ID3D11Device;
 struct ID3D11DeviceContext;
+struct ID3D11InputLayout;
+struct ID3D11PixelShader;
+struct ID3D11RenderTargetView;
 struct ID3D11ShaderResourceView;
+struct ID3D11VertexShader;
 struct IDXGIAdapter;
 struct IDXGIFactory;
 struct IDXGISwapChain;
+typedef ID3D10Blob ID3DBlob;
 
 // FMod types
 namespace FMOD

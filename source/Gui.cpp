@@ -15,9 +15,10 @@
 Gui* app::gui;
 
 //=================================================================================================
-Gui::Gui() : tFontTarget(nullptr), vb(nullptr), vb2(nullptr), cursor_mode(CURSOR_NORMAL), vb2_locked(false), focused_ctrl(nullptr), tPixel(nullptr),
-master_layout(nullptr), layout(nullptr), overlay(nullptr), grayscale(false), vertex_decl(nullptr), effect(nullptr)
+Gui::Gui() : /*tFontTarget(nullptr), vb(nullptr), vb2(nullptr),*/ cursor_mode(CURSOR_NORMAL), vb2_locked(false), focused_ctrl(nullptr), /*tPixel(nullptr),*/
+master_layout(nullptr), layout(nullptr), overlay(nullptr), grayscale(false)/*, vertex_decl(nullptr), effect(nullptr)*/
 {
+	FIXME;
 }
 
 //=================================================================================================
@@ -25,7 +26,8 @@ Gui::~Gui()
 {
 	OnRelease();
 	DeleteElements(created_dialogs);
-	SafeRelease(tPixel);
+	//SafeRelease(tPixel);
+	FIXME;
 	delete master_layout;
 	delete layer;
 	delete dialog_layer;
@@ -34,11 +36,12 @@ Gui::~Gui()
 //=================================================================================================
 void Gui::Init()
 {
-	device = app::render->GetDevice();
-	sprite = app::render->GetSprite();
+	//device = app::render->GetDevice();
+	//sprite = app::render->GetSprite();
 	Control::input = app::input;
 	Control::gui = this;
-	tFontTarget = nullptr;
+	//tFontTarget = nullptr;
+	FIXME;
 	wnd_size = app::engine->GetWindowSize();
 	cursor_pos = wnd_size / 2;
 
@@ -56,7 +59,7 @@ void Gui::Init()
 	dialog_layer->focus_top = true;
 
 	// create pixel texture
-	V(D3DXCreateTexture(device, 1, 1, 0, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &tPixel));
+	/*V(D3DXCreateTexture(device, 1, 1, 0, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &tPixel));
 	D3DLOCKED_RECT lock;
 	V(tPixel->LockRect(0, &lock, nullptr, 0));
 	*((DWORD*)lock.pBits) = Color(255, 255, 255).value;
@@ -71,43 +74,48 @@ void Gui::Init()
 	};
 	V(device->CreateVertexDeclaration(v, &vertex_decl));
 
-	app::render->RegisterShader(this);
+	app::render->RegisterShader(this);*/
+	FIXME;
 }
 
 //=================================================================================================
 void Gui::OnInit()
 {
-	effect = app::render->CompileShader("gui.fx");
+	/*effect = app::render->CompileShader("gui.fx");
 	techGui = effect->GetTechniqueByName("gui");
 	techGui2 = effect->GetTechniqueByName("gui2");
 	techGuiGrayscale = effect->GetTechniqueByName("gui_grayscale");
 	hGuiSize = effect->GetParameterByName(nullptr, "size");
 	hGuiTex = effect->GetParameterByName(nullptr, "tex0");
-	assert(techGui && techGui2 && techGuiGrayscale && hGuiSize && hGuiTex);
+	assert(techGui && techGui2 && techGuiGrayscale && hGuiSize && hGuiTex);*/
+	FIXME;
 }
 
 //=================================================================================================
 void Gui::OnReset()
 {
-	if(effect)
+	/*if(effect)
 		effect->OnLostDevice();
 	SafeRelease(vb);
 	SafeRelease(vb2);
-	SafeRelease(tFontTarget);
+	SafeRelease(tFontTarget);*/
+	FIXME;
 }
 
 //=================================================================================================
 void Gui::OnReload()
 {
-	if(effect)
-		effect->OnResetDevice();
+	//if(effect)
+	//	effect->OnResetDevice();
+	FIXME;
 	CreateVertexBuffer();
 }
 
 //=================================================================================================
 void Gui::OnRelease()
 {
-	SafeRelease(effect);
+	//SafeRelease(effect);
+	FIXME;
 }
 
 //=================================================================================================
@@ -139,6 +147,8 @@ bool Gui::AddFont(cstring filename)
 //=================================================================================================
 Font* Gui::CreateFont(cstring name, int size, int weight, int tex_size, int outline)
 {
+	return nullptr;
+#if 0
 	assert(name && size > 0 && IsPow2(tex_size) && outline >= 0);
 
 	string res_name = Format("%s;%d;%d;%d", name, size, weight, outline);
@@ -282,24 +292,26 @@ Font* Gui::CreateFont(cstring name, int size, int weight, int tex_size, int outl
 		delete f;
 		return nullptr;
 	}
+#endif
 }
 
 //=================================================================================================
-bool Gui::CreateFontInternal(Font* font, ID3DXFont* dx_font, int tex_size, int outline, int max_outline)
-{
-	while(true)
-	{
-		int result = TryCreateFontInternal(font, dx_font, tex_size, outline, max_outline);
-		if(result == 0)
-			return true;
-		else if(result == 1)
-			return false;
-	}
-}
+//bool Gui::CreateFontInternal(Font* font, ID3DXFont* dx_font, int tex_size, int outline, int max_outline)
+//{
+//	while(true)
+//	{
+//		int result = TryCreateFontInternal(font, dx_font, tex_size, outline, max_outline);
+//		if(result == 0)
+//			return true;
+//		else if(result == 1)
+//			return false;
+//	}
+//}
+FIXME;
 
 //=================================================================================================
 // 0-ok, 1-failed, 2-retry
-int Gui::TryCreateFontInternal(Font* font, ID3DXFont* dx_font, int tex_size, int outline, int max_outline)
+/*int Gui::TryCreateFontInternal(Font* font, ID3DXFont* dx_font, int tex_size, int outline, int max_outline)
 {
 	// stwórz render target
 	if(!tFontTarget || tex_size > max_tex_size)
@@ -418,13 +430,18 @@ int Gui::TryCreateFontInternal(Font* font, ID3DXFont* dx_font, int tex_size, int
 		font->tex = tex;
 
 	return 0;
-}
+}*/
+FIXME;
 
 //=================================================================================================
 // Draw text - rewritten from TFQ
 bool Gui::DrawText(Font* font, Cstring str, uint flags, Color color, const Rect& rect, const Rect* clipping, vector<Hitbox>* hitboxes,
 	int* hitbox_counter, const vector<TextLine>* lines)
 {
+
+	FIXME;
+	return false;
+#if 0
 	assert(font);
 
 	uint line_begin, line_end, line_index = 0;
@@ -608,6 +625,7 @@ bool Gui::DrawText(Font* font, Cstring str, uint flags, Color color, const Rect&
 		*hitbox_counter = hc->counter;
 
 	return !bottom_clip;
+#endif
 }
 
 //=================================================================================================
@@ -1088,7 +1106,7 @@ void Gui::DrawLineOutline(Font* font, cstring text, uint line_begin, uint line_e
 //=================================================================================================
 void Gui::Lock(bool outline)
 {
-	V(vb->Lock(0, 0, (void**)&v, D3DLOCK_DISCARD));
+	/*V(vb->Lock(0, 0, (void**)&v, D3DLOCK_DISCARD));
 	in_buffer = 0;
 
 	if(outline)
@@ -1098,60 +1116,64 @@ void Gui::Lock(bool outline)
 		vb2_locked = true;
 	}
 	else
-		vb2_locked = false;
+		vb2_locked = false;*/
+	FIXME;
 }
 
 //=================================================================================================
 void Gui::Flush(bool lock)
 {
-	if(vb2_locked)
-	{
-		// odblokuj drugi bufor
-		V(vb2->Unlock());
+	//if(vb2_locked)
+	//{
+	//	// odblokuj drugi bufor
+	//	V(vb2->Unlock());
 
-		// rysuj o ile jest co
-		if(in_buffer2)
-		{
-			// ustaw teksturê
-			if(tCurrent2 != tSet)
-			{
-				tSet = tCurrent2;
-				V(effect->SetTexture(hGuiTex, tSet));
-				V(effect->CommitChanges());
-			}
+	//	// rysuj o ile jest co
+	//	if(in_buffer2)
+	//	{
+	//		// ustaw teksturê
+	//		if(tCurrent2 != tSet)
+	//		{
+	//			tSet = tCurrent2;
+	//			V(effect->SetTexture(hGuiTex, tSet));
+	//			V(effect->CommitChanges());
+	//		}
 
-			// rysuj
-			V(device->SetStreamSource(0, vb2, 0, sizeof(VParticle)));
-			V(device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, in_buffer * 2));
-		}
-	}
+	//		// rysuj
+	//		V(device->SetStreamSource(0, vb2, 0, sizeof(VParticle)));
+	//		V(device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, in_buffer * 2));
+	//	}
+	//}
 
-	V(vb->Unlock());
+	//V(vb->Unlock());
 
-	if(in_buffer)
-	{
-		// ustaw teksturê
-		if(tCurrent != tSet)
-		{
-			tSet = tCurrent;
-			V(effect->SetTexture(hGuiTex, tSet));
-			V(effect->CommitChanges());
-		}
+	//if(in_buffer)
+	//{
+	//	// ustaw teksturê
+	//	if(tCurrent != tSet)
+	//	{
+	//		tSet = tCurrent;
+	//		V(effect->SetTexture(hGuiTex, tSet));
+	//		V(effect->CommitChanges());
+	//	}
 
-		// rysuj
-		V(device->SetStreamSource(0, vb, 0, sizeof(VParticle)));
-		V(device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, in_buffer * 2));
-	}
+	//	// rysuj
+	//	V(device->SetStreamSource(0, vb, 0, sizeof(VParticle)));
+	//	V(device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, in_buffer * 2));
+	//}
 
-	if(lock)
-		Lock(vb2_locked);
-	else
-		vb2_locked = false;
+	//if(lock)
+	//	Lock(vb2_locked);
+	//else
+	//	vb2_locked = false;
+	FIXME;
 }
 
 //=================================================================================================
 void Gui::Draw(bool draw_layers, bool draw_dialogs)
 {
+	FIXME;
+#if 0
 	PROFILER_BLOCK("DrawGui");
 
 	wnd_size = app::engine->GetWindowSize();
@@ -1195,6 +1217,7 @@ void Gui::Draw(bool draw_layers, bool draw_dialogs)
 
 	V(effect->EndPass());
 	V(effect->End());
+#endif
 }
 
 //=================================================================================================
@@ -1232,7 +1255,8 @@ void Gui::DrawItem(Texture* t, const Int2& item_pos, const Int2& item_size, Colo
 		return;
 	}
 
-	tCurrent = t->tex;
+	FIXME;
+	//tCurrent = t->tex;
 	Lock();
 
 	Vec4 col = Color(color);
@@ -1408,7 +1432,8 @@ void Gui::DrawSprite(Texture* t, const Int2& pos, Color color, const Rect* clipp
 	if(clip_result > 0 && clip_result < 5)
 		return;
 
-	tCurrent = t->tex;
+	FIXME;
+	//tCurrent = t->tex;
 	Lock();
 
 	Vec4 col = Color(color);
@@ -1509,11 +1534,12 @@ void Gui::OnClean()
 //=================================================================================================
 void Gui::CreateVertexBuffer()
 {
-	if(device)
+	FIXME;
+	/*if(device)
 	{
 		V(device->CreateVertexBuffer(sizeof(VParticle) * 6 * 256, D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC, 0, D3DPOOL_DEFAULT, &vb, nullptr));
 		V(device->CreateVertexBuffer(sizeof(VParticle) * 6 * 256, D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC, 0, D3DPOOL_DEFAULT, &vb2, nullptr));
-	}
+	}*/
 }
 
 //=================================================================================================
@@ -1862,7 +1888,8 @@ void Gui::DrawSpriteFull(Texture* t, const Color color)
 {
 	assert(t && t->IsLoaded());
 
-	tCurrent = t->tex;
+	FIXME;
+	//tCurrent = t->tex;
 	Lock();
 
 	Vec4 col = Color(color);
@@ -1942,7 +1969,8 @@ void Gui::DrawSpriteRect(Texture* t, const Rect& rect, Color color)
 {
 	assert(t && t->IsLoaded());
 
-	tCurrent = t->tex;
+	FIXME;
+	//tCurrent = t->tex;
 	Lock();
 
 	Vec4 col = Color(color);
@@ -2028,7 +2056,8 @@ void Gui::DrawSpriteRectPart(Texture* t, const Rect& rect, const Rect& part, Col
 {
 	assert(t && t->IsLoaded());
 
-	tCurrent = t->tex;
+	FIXME;
+	//tCurrent = t->tex;
 	Lock();
 
 	Int2 size = t->GetSize();
@@ -2076,7 +2105,8 @@ void Gui::DrawSpriteTransform(Texture* t, const Matrix& mat, Color color)
 
 	Int2 size = t->GetSize();
 
-	tCurrent = t->tex;
+	FIXME;
+	//tCurrent = t->tex;
 	Lock();
 
 	Vec4 col = Color(color);
@@ -2162,32 +2192,36 @@ void Gui::DrawLine(const Vec2* lines, uint count, Color color, bool strip)
 		}
 	}
 
-	V(vb->Unlock());
+
+	FIXME;
+	/*V(vb->Unlock());
 	V(device->SetVertexDeclaration(vertex_decl));
 	V(device->SetStreamSource(0, vb, 0, sizeof(VParticle)));
-	V(device->DrawPrimitive(strip ? D3DPT_LINESTRIP : D3DPT_LINELIST, 0, count));
+	V(device->DrawPrimitive(strip ? D3DPT_LINESTRIP : D3DPT_LINELIST, 0, count));*/
 }
 
 //=================================================================================================
 void Gui::LineBegin()
 {
-	effect->EndPass();
+	FIXME;
+	/*effect->EndPass();
 	effect->End();
 	effect->SetTechnique(techGui2);
 	uint passes;
 	effect->Begin(&passes, 0);
-	effect->BeginPass(0);
+	effect->BeginPass(0);*/
 }
 
 //=================================================================================================
 void Gui::LineEnd()
 {
-	effect->EndPass();
+	FIXME;
+	/*effect->EndPass();
 	effect->End();
 	effect->SetTechnique(techGui);
 	uint passes;
 	effect->Begin(&passes, 0);
-	effect->BeginPass(0);
+	effect->BeginPass(0);*/
 }
 
 //=================================================================================================
@@ -2273,7 +2307,8 @@ void Gui::DrawSpriteTransformPart(Texture* t, const Matrix& mat, const Rect& par
 
 	Int2 size = t->GetSize();
 
-	tCurrent = t->tex;
+	FIXME;
+	//tCurrent = t->tex;
 	Lock();
 
 	Box2d uv(float(part.Left()) / size.x, float(part.Top() / size.y), float(part.Right()) / size.x, float(part.Bottom()) / size.y);
@@ -2392,7 +2427,8 @@ void Gui::DrawSprite2(Texture* t, const Matrix& mat, const Rect* part, const Rec
 	if(clipping && !rect.Clip(*clipping))
 		return;
 
-	tCurrent = t->tex;
+	FIXME;
+	//tCurrent = t->tex;
 	Lock();
 
 	// fill vertex buffer
@@ -2435,7 +2471,9 @@ void Gui::DrawArea(Color color, const Int2& pos, const Int2& size, const Box2d* 
 	if(!clip_rect || gui_rect.Clip(*clip_rect))
 	{
 		Vec4 col = Color(color);
-		tCurrent = tPixel;
+
+		FIXME;
+		//tCurrent = tPixel;
 		Lock();
 		gui_rect.Populate(v, col);
 		in_buffer = 1;
@@ -2463,7 +2501,9 @@ void Gui::DrawArea(const Box2d& rect, const AreaLayout& area_layout, const Box2d
 		if(area_layout.mode == AreaLayout::Mode::Image && area_layout.background_color != Color::None)
 		{
 			assert(!clip_rect);
-			tCurrent = tPixel;
+
+			FIXME; 
+			//tCurrent = tPixel;
 			Lock();
 			AddRect(rect.LeftTop(), rect.RightBottom(), Color(area_layout.background_color));
 			in_buffer = 1;
@@ -2474,12 +2514,14 @@ void Gui::DrawArea(const Box2d& rect, const AreaLayout& area_layout, const Box2d
 		GuiRect gui_rect;
 		if(area_layout.mode >= AreaLayout::Mode::Image)
 		{
-			tCurrent = area_layout.tex->tex;
+			FIXME;
+			//tCurrent = area_layout.tex->tex;
 			gui_rect.Set(rect, &area_layout.region);
 		}
 		else
 		{
-			tCurrent = tPixel;
+			FIXME;
+			//tCurrent = tPixel;
 			gui_rect.Set(rect, nullptr);
 		}
 		if(clip_rect)
@@ -2499,7 +2541,8 @@ void Gui::DrawArea(const Box2d& rect, const AreaLayout& area_layout, const Box2d
 
 		// border
 		assert(!clip_rect);
-		tCurrent = tPixel;
+		FIXME;
+		//tCurrent = tPixel;
 		col = area_layout.border_color;
 		Lock();
 
@@ -2592,17 +2635,21 @@ void Gui::UseGrayscale(bool grayscale)
 	assert(grayscale != this->grayscale);
 	this->grayscale = grayscale;
 
-	effect->EndPass();
+	FIXME;
+	/*effect->EndPass();
 	effect->End();
 	effect->SetTechnique(grayscale ? techGuiGrayscale : techGui);
 	uint passes;
 	effect->Begin(&passes, 0);
-	effect->BeginPass(0);
+	effect->BeginPass(0);*/
 }
 
 //=================================================================================================
 bool Gui::DrawText2(DrawTextOptions& options)
 {
+	FIXME;
+	return false;
+#if 0
 	uint line_begin, line_end, line_index = 0;
 	int line_width, width = options.rect.SizeX();
 	Vec4 current_color = Color(options.color);
@@ -2797,6 +2844,7 @@ bool Gui::DrawText2(DrawTextOptions& options)
 		*options.hitbox_counter = hc->counter;
 
 	return !bottom_clip;
+#endif
 }
 
 //=================================================================================================

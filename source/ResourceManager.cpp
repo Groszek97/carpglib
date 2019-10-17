@@ -552,7 +552,7 @@ void ResourceManager::LoadMesh(Mesh* mesh)
 {
 	try
 	{
-		IDirect3DDevice9* device = app::render->GetDevice();
+		/*IDirect3DDevice9* device = app::render->GetDevice();
 		if(mesh->IsFile())
 		{
 			FileReader f(mesh->path);
@@ -562,7 +562,8 @@ void ResourceManager::LoadMesh(Mesh* mesh)
 		{
 			MemoryReader f(mesh->GetBuffer());
 			mesh->Load(f, device);
-		}
+		}*/
+		FIXME;
 	}
 	catch(cstring err)
 	{
@@ -625,7 +626,7 @@ void ResourceManager::LoadSoundOrMusic(Sound* sound)
 //=================================================================================================
 void ResourceManager::LoadTexture(Texture* tex)
 {
-	IDirect3DDevice9* device = app::render->GetDevice();
+	/*IDirect3DDevice9* device = app::render->GetDevice();
 	HRESULT hr;
 
 	if(tex->IsFile())
@@ -644,5 +645,6 @@ void ResourceManager::LoadTexture(Texture* tex)
 	}
 
 	if(FAILED(hr))
-		throw Format("Failed to load texture '%s' (%u).", tex->GetPath(), hr);
+		throw Format("Failed to load texture '%s' (%u).", tex->GetPath(), hr);*/
+	FIXME;
 }

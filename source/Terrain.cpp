@@ -1,5 +1,8 @@
 #include "EnginePch.h"
 #include "EngineCore.h"
+
+FIXME;
+#if 0
 #include "Terrain.h"
 #include "Texture.h"
 #include "DirectX.h"
@@ -802,3 +805,4 @@ void Terrain::SetHeightMap(float* _h)
 
 	h = _h;
 }
+#endif

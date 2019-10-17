@@ -68,10 +68,13 @@ protected:
 class ConsoleLogger : public Logger
 {
 public:
+	ConsoleLogger();
 	~ConsoleLogger();
 
 protected:
 	void Log(Level level, cstring text, const tm& time) override;
+
+	bool allocated;
 };
 
 //-----------------------------------------------------------------------------

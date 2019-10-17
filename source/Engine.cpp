@@ -63,7 +63,8 @@ void Engine::ChangeMode()
 		SetWindowLong(hwnd, GWL_STYLE, WS_OVERLAPPEDWINDOW);
 		SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOZORDER | SWP_NOSIZE);
 
-		app::render->Reset(true);
+		//app::render->Reset(true);
+		FIXME;
 
 		SetWindowPos(hwnd, HWND_NOTOPMOST, (GetSystemMetrics(SM_CXSCREEN) - real_size.x) / 2, (GetSystemMetrics(SM_CYSCREEN) - real_size.y) / 2,
 			real_size.x, real_size.y, SWP_SHOWWINDOW | SWP_DRAWFRAME);
@@ -74,7 +75,8 @@ void Engine::ChangeMode()
 		SetWindowLong(hwnd, GWL_STYLE, WS_POPUPWINDOW);
 		SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOZORDER | SWP_NOSIZE);
 
-		app::render->Reset(true);
+		//app::render->Reset(true);
+		FIXME;
 
 		SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, real_size.x, real_size.y, SWP_NOMOVE | SWP_SHOWWINDOW);
 	}
@@ -289,6 +291,26 @@ long Engine::HandleEvent(HWND in_hwnd, uint msg, uint wParam, long lParam)
 	case WM_CLOSE:
 	case WM_DESTROY:
 		shutdown = true;
+		return 0;
+
+	// window size change
+	case WM_SIZE:
+		/*if(wParam == SIZE_MAXIMIZED)
+			SetFullscreen(true);
+		else if(wParam != SIZE_MINIMIZED)
+		{
+			if(!in_resize)
+			{
+				RECT rect = {};
+				GetWindowRect((HWND)hwnd, &rect);
+				real_size = Int2(rect.right - rect.left, rect.bottom - rect.top);
+
+				GetClientRect((HWND)hwnd, &rect);
+				client_size = Int2(rect.right - rect.left, rect.bottom - rect.top);
+			}
+
+			engine->OnChangeResolution(client_size);
+		}*/
 		return 0;
 
 	// handle keyboard

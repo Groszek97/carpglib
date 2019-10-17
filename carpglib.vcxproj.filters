@@ -206,9 +206,6 @@
     <ClInclude Include="include\Terrain.h">
       <Filter>entity</Filter>
     </ClInclude>
-    <ClInclude Include="include\RenderTarget.h">
-      <Filter>entity</Filter>
-    </ClInclude>
     <ClInclude Include="include\ParticleSystem.h">
       <Filter>entity</Filter>
     </ClInclude>
@@ -263,6 +260,9 @@
     </ClInclude>
     <ClInclude Include="include\AppEntry.h">
       <Filter>components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\RenderTarget2.h">
+      <Filter>entity</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

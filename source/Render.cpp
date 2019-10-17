@@ -1,28 +1,35 @@
 #include "EnginePch.h"
 #include "EngineCore.h"
 #include "Render.h"
-#include "RenderTarget.h"
+//#include "RenderTarget.h"
 #include "Engine.h"
 #include "ShaderHandler.h"
 #include "File.h"
 #include "App.h"
-#include <d3d11_1.h>
+//#include <d3d11_1.h>
+#include "DirectX.h"
+#include <d3dcompiler.h>
 
 Render* app::render;
 const DXGI_FORMAT DISPLAY_FORMAT = DXGI_FORMAT_R8G8B8A8_UNORM;
 
 //=================================================================================================
-Render::Render() : initialized(false), d3d(nullptr), device(nullptr), sprite(nullptr), current_target(nullptr), current_surf(nullptr), vsync(true),
-lost_device(false), res_freed(false), shaders_dir("../shaders"), refresh_hz(0), shader_version(-1), used_adapter(0), multisampling(0), multisampling_quality(0)
+Render::Render() : initialized(false), factory(nullptr), adapter(nullptr), swap_chain(nullptr), device(nullptr), device_context(nullptr),
+render_target(nullptr), depth_stencil_view(nullptr),
+
+
+/*current_target(nullptr), current_surf(nullptr),*/
+vsync(true),
+shaders_dir("shaders"), refresh_hz(0), shader_version(-1), /*used_adapter(0), used_output(0),*/ multisampling(0), multisampling_quality(0)
 {
-	for(int i = 0; i < VDI_MAX; ++i)
-		vertex_decl[i] = nullptr;
+	//for(int i = 0; i < VDI_MAX; ++i)
+	//	vertex_decl[i] = nullptr;
 }
 
 //=================================================================================================
 Render::~Render()
 {
-	for(ShaderHandler* shader : shaders)
+	/*for(ShaderHandler* shader : shaders)
 	{
 		if(!shader->IsManual())
 		{
@@ -44,14 +51,38 @@ Render::~Render()
 	}
 	SafeRelease(sprite);
 	SafeRelease(device);
-	SafeRelease(d3d);
+	SafeRelease(d3d);*/
+
+	SafeRelease(depth_stencil_view);
+	SafeRelease(render_target);
+	SafeRelease(swap_chain);
+	SafeRelease(device_context);
+
+	if(device)
+	{
+		// write to output directx leaks
+#ifdef _DEBUG
+		ID3D11Debug* debug;
+		device->QueryInterface(__uuidof(ID3D11Debug), (void**)&debug);
+		if(debug)
+		{
+			debug->ReportLiveDeviceObjects(D3D11_RLDO_DETAIL | D3D11_RLDO_IGNORE_INTERNAL);
+			debug->Release();
+		}
+#endif
+
+		device->Release();
+	}
+
+	SafeRelease(adapter);
+	SafeRelease(factory);
 }
 
 //=================================================================================================
 void Render::Init()
 {
 	// create direct3d object
-	d3d = Direct3DCreate9(D3D_SDK_VERSION);
+	/*d3d = Direct3DCreate9(D3D_SDK_VERSION);
 	if(!d3d)
 		throw "Render: Failed to create direct3d object.";
 
@@ -184,14 +215,32 @@ void Render::Init()
 	CreateVertexDeclarations();
 
 	initialized = true;
-	Info("Render: Directx device created.");
+	Info("Render: Directx device created.");*/
+
+	wnd_size = app::engine->GetWindowSize();
+
+	CreateAdapter();
+	CreateDeviceAndSwapChain();
+	CreateSizeDependentResources();
+	device_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	InitTmp();
+}
+
+//=================================================================================================
+void Render::CreateAdapter()
+{
+	V(CreateDXGIFactory(__uuidof(IDXGIFactory), (void**)&factory));
+
+	V(factory->EnumAdapters(0u, &adapter));
+
+	DXGI_ADAPTER_DESC desc;
+	V(adapter->GetDesc(&desc));
+	Info("Used adapter: %s", ToString(desc.Description));
 }
 
 //=================================================================================================
 void Render::CreateDeviceAndSwapChain()
 {
-	const Int2& wnd_size = app::engine->GetWindowSize();
-
 	DXGI_SWAP_CHAIN_DESC swap_desc = {};
 	swap_desc.BufferCount = 1;
 	swap_desc.BufferDesc.Width = wnd_size.x;
@@ -219,7 +268,7 @@ void Render::CreateDeviceAndSwapChain()
 	if(FAILED(result))
 		throw Format("Failed to create device and swap chain (%u).", result);
 
-	Info("Created device with '%s' feature level.", GetFeatureLevelString(feature_level));
+	/*Info("Created device with '%s' feature level.", GetFeatureLevelString(feature_level));
 	if(feature_level == D3D_FEATURE_LEVEL_11_0)
 	{
 		vs_target_version = "vs_5_0";
@@ -229,14 +278,87 @@ void Render::CreateDeviceAndSwapChain()
 	{
 		vs_target_version = "vs_4_0";
 		ps_target_version = "ps_4_0";
-	}
+	}*/
 
 	// disable alt+enter
-	C(factory->MakeWindowAssociation(swap_desc.OutputWindow, DXGI_MWA_NO_WINDOW_CHANGES));
+	V(factory->MakeWindowAssociation(swap_desc.OutputWindow, DXGI_MWA_NO_WINDOW_CHANGES));
 }
 
+
+void Render::CreateSizeDependentResources()
+{
+	CreateRenderTarget();
+	CreateDepthStencilView();
+	device_context->OMSetRenderTargets(1, &render_target, depth_stencil_view);
+	SetViewport();
+}
+
+void Render::CreateRenderTarget()
+{
+	HRESULT result;
+	ID3D11Texture2D* back_buffer;
+	result = swap_chain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&back_buffer);
+	if(FAILED(result))
+		throw Format("Failed to get back buffer (%u).", result);
+
+	// Create the render target view with the back buffer pointer.
+	result = device->CreateRenderTargetView(back_buffer, NULL, &render_target);
+	if(FAILED(result))
+		throw Format("Failed to create render target view (%u).", result);
+
+	// Release pointer to the back buffer as we no longer need it.
+	back_buffer->Release();
+}
+
+void Render::CreateDepthStencilView()
+{
+	// create depth buffer texture
+	D3D11_TEXTURE2D_DESC tex_desc = {};
+
+	tex_desc.Width = wnd_size.x;
+	tex_desc.Height = wnd_size.y;
+	tex_desc.MipLevels = 1;
+	tex_desc.ArraySize = 1;
+	tex_desc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	tex_desc.SampleDesc.Count = 1;
+	tex_desc.SampleDesc.Quality = 0;
+	tex_desc.Usage = D3D11_USAGE_DEFAULT;
+	tex_desc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+	tex_desc.CPUAccessFlags = 0;
+	tex_desc.MiscFlags = 0;
+
+	ID3D11Texture2D* depth_tex;
+	V(device->CreateTexture2D(&tex_desc, nullptr, &depth_tex));
+
+	//==================================================================
+	// create depth stencil view from texture
+	D3D11_DEPTH_STENCIL_VIEW_DESC view_desc = {};
+
+	view_desc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	view_desc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+	view_desc.Texture2D.MipSlice = 0;
+
+	V(device->CreateDepthStencilView(depth_tex, &view_desc, &depth_stencil_view));
+
+	depth_tex->Release();
+}
+
+void Render::SetViewport()
+{
+	D3D11_VIEWPORT viewport;
+	viewport.Width = (float)wnd_size.x;
+	viewport.Height = (float)wnd_size.y;
+	viewport.MinDepth = 0.0f;
+	viewport.MaxDepth = 1.0f;
+	viewport.TopLeftX = 0.0f;
+	viewport.TopLeftY = 0.0f;
+
+	device_context->RSSetViewports(1, &viewport);
+}
+
+
 //=================================================================================================
-void Render::GatherParams(D3DPRESENT_PARAMETERS& d3dpp)
+/*void Render::GatherParams(D3DPRESENT_PARAMETERS& d3dpp)
 {
 	d3dpp.Windowed = !app::engine->IsFullscreen();
 	d3dpp.BackBufferCount = 1;
@@ -252,12 +374,12 @@ void Render::GatherParams(D3DPRESENT_PARAMETERS& d3dpp)
 	d3dpp.Flags = 0;
 	d3dpp.PresentationInterval = (vsync ? D3DPRESENT_INTERVAL_ONE : D3DPRESENT_INTERVAL_IMMEDIATE);
 	d3dpp.FullScreen_RefreshRateInHz = (d3dpp.Windowed ? 0 : refresh_hz);
-}
+}*/
 
 //=================================================================================================
 void Render::LogMultisampling()
 {
-	LocalString s = "Render: Available multisampling: ";
+	/*LocalString s = "Render: Available multisampling: ";
 
 	for(int j = 2; j <= 16; ++j)
 	{
@@ -274,13 +396,13 @@ void Render::LogMultisampling()
 	else
 		s.pop(2);
 
-	Info(s);
+	Info(s);*/
 }
 
 //=================================================================================================
 void Render::LogAndSelectResolution()
 {
-	struct Res
+	/*struct Res
 	{
 		int w, h, hz;
 
@@ -370,17 +492,17 @@ void Render::LogAndSelectResolution()
 		else
 			Info("Render: Defaulting refresh rate to %d Hz.", best_valid_hz);
 		refresh_hz = best_valid_hz;
-	}
+	}*/
 }
 
 //=================================================================================================
 void Render::SetDefaultRenderState()
 {
-	V(device->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_ADD));
+	/*V(device->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_ADD));
 	V(device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA));
 	V(device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA));
 	V(device->SetRenderState(D3DRS_ALPHAREF, 200));
-	V(device->SetRenderState(D3DRS_ALPHAFUNC, D3DCMP_GREATEREQUAL));
+	V(device->SetRenderState(D3DRS_ALPHAFUNC, D3DCMP_GREATEREQUAL));*/
 
 	r_alphatest = false;
 	r_alphablend = false;
@@ -391,7 +513,7 @@ void Render::SetDefaultRenderState()
 //=================================================================================================
 void Render::CreateVertexDeclarations()
 {
-	const D3DVERTEXELEMENT9 Default[] = {
+	/*const D3DVERTEXELEMENT9 Default[] = {
 		{0, 0,  D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_POSITION,		0},
 		{0, 12,	D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_NORMAL,		0},
 		{0, 24, D3DDECLTYPE_FLOAT2,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_TEXCOORD,		0},
@@ -457,94 +579,13 @@ void Render::CreateVertexDeclarations()
 		{0,	0,	D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_POSITION,		0},
 		D3DDECL_END()
 	};
-	V(device->CreateVertexDeclaration(Pos, &vertex_decl[VDI_POS]));
+	V(device->CreateVertexDeclaration(Pos, &vertex_decl[VDI_POS]));*/
 }
-
-//=================================================================================================
-bool Render::Reset(bool force)
-{
-	Info("Render: Reseting device.");
-	BeforeReset();
-
-	// gather params
-	D3DPRESENT_PARAMETERS d3dpp = { 0 };
-	GatherParams(d3dpp);
-
-	// reset
-	HRESULT hr = device->Reset(&d3dpp);
-	if(FAILED(hr))
-	{
-		if(force || hr != D3DERR_DEVICELOST)
-		{
-			if(hr == D3DERR_INVALIDCALL)
-				throw "Render: Device reset returned D3DERR_INVALIDCALL, not all resources was released.";
-			else
-				throw Format("Render: Failed to reset directx device (%d).", hr);
-		}
-		else
-		{
-			Warn("Render: Failed to reset device.");
-			return false;
-		}
-	}
-
-	AfterReset();
-	return true;
-}
-
-//=================================================================================================
-void Render::WaitReset()
-{
-	Info("Render: Device lost at loading. Waiting for reset.");
-	BeforeReset();
-
-	app::engine->UpdateActivity(false);
-
-	// gather params
-	D3DPRESENT_PARAMETERS d3dpp = { 0 };
-	GatherParams(d3dpp);
-
-	// wait for reset
-	while(true)
-	{
-		app::engine->DoPseudotick(true);
-
-		HRESULT hr = device->TestCooperativeLevel();
-		if(hr == D3DERR_DEVICELOST)
-		{
-			Info("Render: Device lost, waiting...");
-		}
-		else if(hr == D3DERR_DEVICENOTRESET)
-		{
-			Info("Render: Device can be reseted, trying...");
-
-			// reset
-			hr = device->Reset(&d3dpp);
-			if(FAILED(hr))
-			{
-				if(hr == D3DERR_DEVICELOST)
-					Warn("Render: Can't reset, device is lost.");
-				else if(hr == D3DERR_INVALIDCALL)
-					throw "Render: Device reset returned D3DERR_INVALIDCALL, not all resources was released.";
-				else
-					throw Format("Render: Device reset returned error (%u).", hr);
-			}
-			else
-				break;
-		}
-		else
-			throw Format("Render: Device lost and cannot reset (%u).", hr);
-		Sleep(500);
-	}
-
-	AfterReset();
-}
-
 
 //=================================================================================================
 void Render::Draw(bool call_present)
 {
-	HRESULT hr = device->TestCooperativeLevel();
+	/*HRESULT hr = device->TestCooperativeLevel();
 	if(hr != D3D_OK)
 	{
 		lost_device = true;
@@ -579,45 +620,42 @@ void Render::Draw(bool call_present)
 			else
 				throw Format("Render: Failed to present screen (%d).", hr);
 		}
-	}
-}
+	}*/
 
-//=================================================================================================
-void Render::BeforeReset()
-{
-	if(res_freed)
-		return;
-	res_freed = true;
-	app::app->OnReset();
-	V(sprite->OnLostDevice());
-	for(ShaderHandler* shader : shaders)
-		shader->OnReset();
-	for(RenderTarget* target : targets)
-	{
-		SafeRelease(target->tex.tex);
-		SafeRelease(target->surf);
-	}
-}
+	rot += t.Tick() * 3;
 
-//=================================================================================================
-void Render::AfterReset()
-{
-	SetDefaultRenderState();
-	V(sprite->OnResetDevice());
-	for(ShaderHandler* shader : shaders)
-		shader->OnReload();
-	for(RenderTarget* target : targets)
-		CreateRenderTargetTexture(target);
-	V(sprite->OnResetDevice());
-	app::app->OnReload();
-	lost_device = false;
-	res_freed = false;
+	device_context->ClearRenderTargetView(render_target, (float*)Vec4(0.1f, 0.1f, 0.1f, 1));
+	device_context->ClearDepthStencilView(depth_stencil_view, D3D11_CLEAR_DEPTH, 1.f, 0);
+
+	device_context->IASetInputLayout(layout);
+	device_context->VSSetShader(vertex_shader, nullptr, 0);
+	device_context->PSSetShader(pixel_shader, nullptr, 0);
+
+	Matrix mat_world = Matrix::RotationY(rot),
+		mat_view = Matrix::CreateLookAt(Vec3(0, 0, -2), Vec3(0, 0, 0)),
+		mat_proj = Matrix::CreatePerspectiveFieldOfView(PI / 4, 1024.f / 768, 0.1f, 50.f),
+		mat_combined = mat_world * mat_view * mat_proj;
+
+	D3D11_MAPPED_SUBRESOURCE resource;
+	V(device_context->Map(vs_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &resource));
+	Matrix& g = *(Matrix*)resource.pData;
+	g = mat_combined.Transpose();
+	device_context->Unmap(vs_buffer, 0);
+	device_context->VSSetConstantBuffers(0, 1, &vs_buffer);
+
+	uint stride = sizeof(Vec3) + sizeof(Vec4),
+		offset = 0;
+	device_context->IASetVertexBuffers(0, 1, &vb, &stride, &offset);
+
+	device_context->Draw(6, 0);
+
+	V(swap_chain->Present(vsync ? 1 : 0, 0));
 }
 
 //=================================================================================================
 bool Render::CheckDisplay(const Int2& size, int& hz)
 {
-	assert(size.x >= Engine::MIN_WINDOW_SIZE.x && size.x >= Engine::MIN_WINDOW_SIZE.y);
+	/*assert(size.x >= Engine::MIN_WINDOW_SIZE.x && size.x >= Engine::MIN_WINDOW_SIZE.y);
 
 	// check minimum resolution
 	if(size.x < Engine::MIN_WINDOW_SIZE.x || size.y < Engine::MIN_WINDOW_SIZE.y)
@@ -654,7 +692,8 @@ bool Render::CheckDisplay(const Int2& size, int& hz)
 		}
 
 		return false;
-	}
+	}*/
+	return false;
 }
 
 //=================================================================================================
@@ -666,7 +705,7 @@ void Render::RegisterShader(ShaderHandler* shader)
 }
 
 //=================================================================================================
-ID3DXEffect* Render::CompileShader(cstring name)
+/*ID3DXEffect* Render::CompileShader(cstring name)
 {
 	assert(name);
 
@@ -840,58 +879,58 @@ TEX Render::CreateTexture(const Int2& size)
 	TEX tex;
 	V(device->CreateTexture(size.x, size.y, 0, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &tex, nullptr));
 	return tex;
-}
+}*/
 
 //=================================================================================================
-RenderTarget* Render::CreateRenderTarget(const Int2& size)
-{
-	assert(size.x > 0 && size.y > 0 && IsPow2(size.x) && IsPow2(size.y));
-	RenderTarget* target = new RenderTarget;
-	target->size = size;
-	CreateRenderTargetTexture(target);
-	targets.push_back(target);
-	return target;
-}
+//RenderTarget* Render::CreateRenderTarget(const Int2& size)
+//{
+//	assert(size.x > 0 && size.y > 0 && IsPow2(size.x) && IsPow2(size.y));
+//	RenderTarget* target = new RenderTarget;
+//	target->size = size;
+//	CreateRenderTargetTexture(target);
+//	targets.push_back(target);
+//	return target;
+//}
 
 //=================================================================================================
 void Render::CreateRenderTargetTexture(RenderTarget* target)
 {
-	V(device->CreateTexture(target->size.x, target->size.y, 0, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &target->tex.tex, nullptr));
+	/*V(device->CreateTexture(target->size.x, target->size.y, 0, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &target->tex.tex, nullptr));
 	D3DMULTISAMPLE_TYPE type = (D3DMULTISAMPLE_TYPE)multisampling;
 	if(type != D3DMULTISAMPLE_NONE)
 		V(device->CreateRenderTarget(target->size.x, target->size.y, D3DFMT_A8R8G8B8, type, multisampling_quality, FALSE, &target->surf, nullptr));
 	else
 		target->surf = nullptr;
-	target->tex.state = ResourceState::Loaded;
+	target->tex.state = ResourceState::Loaded;*/
 }
 
 //=================================================================================================
-Texture* Render::CopyToTexture(RenderTarget* target)
-{
-	assert(target);
-	D3DSURFACE_DESC desc;
-	V(target->tex.tex->GetLevelDesc(0, &desc));
-	TEX tex;
-	V(device->CreateTexture(desc.Width, desc.Height, 0, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &tex, nullptr));
-	SURFACE surf;
-	V(tex->GetSurfaceLevel(0, &surf));
-	HRESULT hr = D3DXLoadSurfaceFromSurface(surf, nullptr, nullptr, target->GetSurface(), nullptr, nullptr, D3DX_DEFAULT, 0);
-	target->FreeSurface();
-	surf->Release();
-	if(SUCCEEDED(hr))
-	{
-		Texture* t = new Texture;
-		t->tex = tex;
-		t->state = ResourceState::Loaded;
-		return t;
-	}
-	else
-	{
-		tex->Release();
-		WaitReset();
-		return nullptr;
-	}
-}
+//Texture* Render::CopyToTexture(RenderTarget* target)
+//{
+//	assert(target);
+//	D3DSURFACE_DESC desc;
+//	V(target->tex.tex->GetLevelDesc(0, &desc));
+//	TEX tex;
+//	V(device->CreateTexture(desc.Width, desc.Height, 0, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &tex, nullptr));
+//	SURFACE surf;
+//	V(tex->GetSurfaceLevel(0, &surf));
+//	HRESULT hr = D3DXLoadSurfaceFromSurface(surf, nullptr, nullptr, target->GetSurface(), nullptr, nullptr, D3DX_DEFAULT, 0);
+//	target->FreeSurface();
+//	surf->Release();
+//	if(SUCCEEDED(hr))
+//	{
+//		Texture* t = new Texture;
+//		t->tex = tex;
+//		t->state = ResourceState::Loaded;
+//		return t;
+//	}
+//	else
+//	{
+//		tex->Release();
+//		WaitReset();
+//		return nullptr;
+//	}
+//}
 
 //=================================================================================================
 void Render::SetAlphaBlend(bool use_alphablend)
@@ -899,7 +938,7 @@ void Render::SetAlphaBlend(bool use_alphablend)
 	if(use_alphablend != r_alphablend)
 	{
 		r_alphablend = use_alphablend;
-		V(device->SetRenderState(D3DRS_ALPHABLENDENABLE, r_alphablend ? TRUE : FALSE));
+		//V(device->SetRenderState(D3DRS_ALPHABLENDENABLE, r_alphablend ? TRUE : FALSE));
 	}
 }
 
@@ -909,7 +948,7 @@ void Render::SetAlphaTest(bool use_alphatest)
 	if(use_alphatest != r_alphatest)
 	{
 		r_alphatest = use_alphatest;
-		V(device->SetRenderState(D3DRS_ALPHATESTENABLE, r_alphatest ? TRUE : FALSE));
+		//V(device->SetRenderState(D3DRS_ALPHATESTENABLE, r_alphatest ? TRUE : FALSE));
 	}
 }
 
@@ -919,7 +958,7 @@ void Render::SetNoCulling(bool use_nocull)
 	if(use_nocull != r_nocull)
 	{
 		r_nocull = use_nocull;
-		V(device->SetRenderState(D3DRS_CULLMODE, r_nocull ? D3DCULL_NONE : D3DCULL_CCW));
+		//V(device->SetRenderState(D3DRS_CULLMODE, r_nocull ? D3DCULL_NONE : D3DCULL_CCW));
 	}
 }
 
@@ -929,7 +968,7 @@ void Render::SetNoZWrite(bool use_nozwrite)
 	if(use_nozwrite != r_nozwrite)
 	{
 		r_nozwrite = use_nozwrite;
-		V(device->SetRenderState(D3DRS_ZWRITEENABLE, r_nozwrite ? FALSE : TRUE));
+		//V(device->SetRenderState(D3DRS_ZWRITEENABLE, r_nozwrite ? FALSE : TRUE));
 	}
 }
 
@@ -940,14 +979,14 @@ void Render::SetVsync(bool new_vsync)
 		return;
 
 	vsync = new_vsync;
-	if(initialized)
-		Reset(true);
+	//if(initialized)
+		;// Reset(true);
 }
 
 //=================================================================================================
 int Render::SetMultisampling(int type, int level)
 {
-	if(type == multisampling && (level == -1 || level == multisampling_quality))
+	/*if(type == multisampling && (level == -1 || level == multisampling_quality))
 		return 1;
 
 	if(!initialized)
@@ -976,13 +1015,14 @@ int Render::SetMultisampling(int type, int level)
 		return 2;
 	}
 	else
-		return 0;
+		return 0;*/
+	return 0;
 }
 
 //=================================================================================================
 void Render::GetResolutions(vector<Resolution>& v) const
 {
-	v.clear();
+	/*v.clear();
 	uint display_modes = d3d->GetAdapterModeCount(used_adapter, DISPLAY_FORMAT);
 	for(uint i = 0; i < display_modes; ++i)
 	{
@@ -990,13 +1030,13 @@ void Render::GetResolutions(vector<Resolution>& v) const
 		V(d3d->EnumAdapterModes(used_adapter, DISPLAY_FORMAT, i, &d_mode));
 		if(d_mode.Width >= (uint)Engine::MIN_WINDOW_SIZE.x && d_mode.Height >= (uint)Engine::MIN_WINDOW_SIZE.y)
 			v.push_back({ Int2(d_mode.Width, d_mode.Height), d_mode.RefreshRate });
-	}
+	}*/
 }
 
 //=================================================================================================
 void Render::GetMultisamplingModes(vector<Int2>& v) const
 {
-	v.clear();
+	/*v.clear();
 	for(int j = 2; j <= 16; ++j)
 	{
 		DWORD levels, levels2;
@@ -1007,60 +1047,182 @@ void Render::GetMultisamplingModes(vector<Int2>& v) const
 			for(int i = 0; i < level; ++i)
 				v.push_back(Int2(j, i));
 		}
-	}
+	}*/
 }
 
 //=================================================================================================
 void Render::SetTarget(RenderTarget* target)
 {
-	if(target)
-	{
-		assert(!current_target);
+	//if(target)
+	//{
+	//	assert(!current_target);
 
-		if(target->surf)
-			V(device->SetRenderTarget(0, target->surf));
-		else
-		{
-			V(target->tex.tex->GetSurfaceLevel(0, &current_surf));
-			V(device->SetRenderTarget(0, current_surf));
-		}
+	//	if(target->surf)
+	//		V(device->SetRenderTarget(0, target->surf));
+	//	else
+	//	{
+	//		V(target->tex.tex->GetSurfaceLevel(0, &current_surf));
+	//		V(device->SetRenderTarget(0, current_surf));
+	//	}
 
-		current_target = target;
-	}
-	else
-	{
-		assert(current_target);
+	//	current_target = target;
+	//}
+	//else
+	//{
+	//	assert(current_target);
 
-		if(current_target->tmp_surf)
-		{
-			current_target->surf->Release();
-			current_target->surf = nullptr;
-			current_target->tmp_surf = false;
-		}
-		else
-		{
-			// copy to surface if using multisampling
-			if(current_target->surf)
-			{
-				V(current_target->tex.tex->GetSurfaceLevel(0, &current_surf));
-				V(device->StretchRect(current_target->surf, nullptr, current_surf, nullptr, D3DTEXF_NONE));
-			}
-			current_surf->Release();
-		}
+	//	if(current_target->tmp_surf)
+	//	{
+	//		current_target->surf->Release();
+	//		current_target->surf = nullptr;
+	//		current_target->tmp_surf = false;
+	//	}
+	//	else
+	//	{
+	//		// copy to surface if using multisampling
+	//		if(current_target->surf)
+	//		{
+	//			V(current_target->tex.tex->GetSurfaceLevel(0, &current_surf));
+	//			V(device->StretchRect(current_target->surf, nullptr, current_surf, nullptr, D3DTEXF_NONE));
+	//		}
+	//		current_surf->Release();
+	//	}
 
-		// restore old render target
-		V(device->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &current_surf));
-		V(device->SetRenderTarget(0, current_surf));
-		current_surf->Release();
+	//	// restore old render target
+	//	V(device->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &current_surf));
+	//	V(device->SetRenderTarget(0, current_surf));
+	//	current_surf->Release();
 
-		current_target = nullptr;
-		current_surf = nullptr;
-	}
+	//	current_target = nullptr;
+	//	current_surf = nullptr;
+	//}
 }
 
 //=================================================================================================
 void Render::SetTextureAddressMode(TextureAddressMode mode)
 {
-	V(device->SetSamplerState(0, D3DSAMP_ADDRESSU, (D3DTEXTUREADDRESS)mode));
-	V(device->SetSamplerState(0, D3DSAMP_ADDRESSV, (D3DTEXTUREADDRESS)mode));
+	/*V(device->SetSamplerState(0, D3DSAMP_ADDRESSU, (D3DTEXTUREADDRESS)mode));
+	V(device->SetSamplerState(0, D3DSAMP_ADDRESSV, (D3DTEXTUREADDRESS)mode));*/
+}
+
+void Render::InitTmp()
+{
+	ID3DBlob* vs_buf = CompileShader("test.hlsl", "vs_main", true);
+	HRESULT result = device->CreateVertexShader(vs_buf->GetBufferPointer(), vs_buf->GetBufferSize(), nullptr, &vertex_shader);
+	//if(FAILED(result))
+	//	throw Format("Failed to create vertex shader '%s' (%u).", filename, result);
+
+	ID3DBlob* ps_buf = CompileShader("test.hlsl", "ps_main", false);
+	result = device->CreatePixelShader(ps_buf->GetBufferPointer(), ps_buf->GetBufferSize(), nullptr, &pixel_shader);
+	//if(FAILED(result))
+	//	throw Format("Failed to create pixel shader '%s' (%u).", filename, result);
+
+	// create layout
+	D3D11_INPUT_ELEMENT_DESC desc[] = {
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+	};
+	result = device->CreateInputLayout(desc, countof(desc), vs_buf->GetBufferPointer(), vs_buf->GetBufferSize(), &layout);
+	//if(FAILED(result))
+	//	throw Format("Failed to create input layout '%s' (%u).", filename, result);
+
+	vs_buffer = CreateConstantBuffer(sizeof(Matrix));
+
+	vs_buf->Release();
+	ps_buf->Release();
+
+	// create mesh
+
+	struct VerTex
+	{
+		Vec3 pos;
+		Vec4 color;
+	};
+	VerTex data[6] = {
+		{ Vec3(-0.5f, -0.5f, 0.f), Vec4(1,0,0,1)},
+		{Vec3(0,0.5f,0), Vec4(0,1,0,1)},
+		{Vec3(0.5f,-0.5f,0), Vec4(0,0,1,1)},
+		{ Vec3(-0.5f, -0.5f, 0.f), Vec4(1,0,0,1)},
+		{Vec3(0.5f,-0.5f,0), Vec4(0,0,1,1)},
+		{Vec3(0,0.5f,0), Vec4(0,1,0,1)}
+	};
+
+	D3D11_BUFFER_DESC v_desc;
+	v_desc.Usage = D3D11_USAGE_DEFAULT;
+	v_desc.ByteWidth = sizeof(data);
+	v_desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	v_desc.CPUAccessFlags = 0;
+	v_desc.MiscFlags = 0;
+	v_desc.StructureByteStride = 0;
+
+	D3D11_SUBRESOURCE_DATA v_data;
+	v_data.pSysMem = data;
+
+	result = device->CreateBuffer(&v_desc, &v_data, &vb);
+	if(FAILED(result))
+		throw Format("Failed to create vertex buffer (%u).", result);
+
+	// over and out
+
+	t.Start();
+	rot = 0;
+}
+
+
+ID3DBlob* Render::CompileShader(cstring filename, cstring entry, bool is_vertex)
+{
+	assert(filename && entry);
+
+	cstring target = is_vertex ? "vs_5_0" : "ps_5_0";
+
+	uint flags = D3DCOMPILE_ENABLE_STRICTNESS;
+#ifdef _DEBUG
+	flags |= D3DCOMPILE_DEBUG;
+#endif
+
+	cstring path = Format("%s/%s", shaders_dir.c_str(), filename);
+	ID3DBlob* shader_blob = nullptr;
+	ID3DBlob* error_blob = nullptr;
+	HRESULT result = D3DCompileFromFile(ToWString(path), nullptr, nullptr, entry, target, flags, 0, &shader_blob, &error_blob);
+	if(FAILED(result))
+	{
+		SafeRelease(shader_blob);
+		if(error_blob)
+		{
+			cstring err = (cstring)error_blob->GetBufferPointer();
+			cstring msg = Format("Failed to compile '%s' function '%s': %s (code %u).", path, entry, err, result);
+			error_blob->Release();
+			throw msg;
+		}
+		else
+			throw Format("Failed to compile '%s' function '%s' (code %u).", path, entry, result);
+	}
+
+	if(error_blob)
+	{
+		cstring err = (cstring)error_blob->GetBufferPointer();
+		Warn("Shader '%s' warnings: %s", path, err);
+		error_blob->Release();
+	}
+
+	return shader_blob;
+}
+
+
+ID3D11Buffer* Render::CreateConstantBuffer(uint size)
+{
+	D3D11_BUFFER_DESC cb_desc;
+	cb_desc.Usage = D3D11_USAGE_DYNAMIC;
+	cb_desc.ByteWidth = size;
+	cb_desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	cb_desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	cb_desc.MiscFlags = 0;
+	cb_desc.StructureByteStride = 0;
+
+	ID3D11Buffer* buffer;
+	HRESULT result = device->CreateBuffer(&cb_desc, NULL, &buffer);
+	if(FAILED(result))
+		throw Format("Failed to create constant buffer (size:%u; code:%u).", size, result);
+
+	return buffer;
 }

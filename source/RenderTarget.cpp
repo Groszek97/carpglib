@@ -1,5 +1,8 @@
 #include "EnginePch.h"
 #include "EngineCore.h"
+
+FIXME;
+#if 0
 #include "RenderTarget.h"
 #include "File.h"
 #include "DirectX.h"
@@ -58,3 +61,4 @@ void RenderTarget::FreeSurface()
 		tmp_surf = false;
 	}
 }
+#endif

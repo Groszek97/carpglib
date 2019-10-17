@@ -28,7 +28,7 @@ void Texture::ResizeImage(Int2& new_size, Int2& img_size, Vec2& scale)
 Int2 Texture::GetSize() const
 {
 	ID3D11Texture2D* res;
-	V(tex->GetResource(reinterpret_cast<ID3D11Resource**>(&res)));
+	tex->GetResource(reinterpret_cast<ID3D11Resource**>(&res));
 	D3D11_TEXTURE2D_DESC desc;
 	res->GetDesc(&desc);
 	Int2 size(desc.Width, desc.Height);
