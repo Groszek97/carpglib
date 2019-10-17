@@ -83,6 +83,8 @@ struct Mesh : public Resource
 		Quat rot;
 		float scale;
 
+		KeyframeBone() {}
+		KeyframeBone(const Vec3& pos, const Quat& rot, float scale) : pos(pos), rot(rot), scale(scale) {}
 		void Mix(Matrix& out, const Matrix& mul) const;
 		static void Interpolate(KeyframeBone& out, const KeyframeBone& k, const KeyframeBone& k2, float t);
 	};
@@ -141,44 +143,31 @@ struct Mesh : public Resource
 	Mesh();
 	~Mesh();
 
-	static void MeshInit();
-
-	void SetupBoneMatrices();
-	//void Load(StreamReader& stream, IDirect3DDevice9* device);
+	void Load(StreamReader& stream);
 	void LoadMetadata(StreamReader& stream);
 	void LoadHeader(StreamReader& stream);
-	void SetVertexSizeDecl();
 	void LoadPoints(StreamReader& stream);
 	void LoadBoneGroups(StreamReader& stream);
 	void LoadMatrix33(StreamReader& stream, Matrix& m);
 	static void LoadVertexData(VertexData* vd, StreamReader& stream);
-	Animation* GetAnimation(cstring name);
-	Bone* GetBone(cstring name);
-	Point* GetPoint(cstring name);
-	/*TEX GetTexture(uint idx) const
-	{
-		assert(idx < head.n_subs && subs[idx].tex && subs[idx].tex->tex);
-		return subs[idx].tex->tex;
-	}
-	TEX GetTexture(uint index, const TexOverride* tex_override) const
-	{
-		if(tex_override && tex_override[index].diffuse)
-			return tex_override[index].diffuse->tex;
-		else
-			return GetTexture(index);
-	}*/
+	void SetVertexSizeDecl();
+	void SetupBoneMatrices();
 
 	bool IsAnimated() const { return IsSet(head.flags, F_ANIMATED); }
 	bool IsStatic() const { return IsSet(head.flags, F_STATIC); }
 
+	Animation* GetAnimation(cstring name);
+	Bone* GetBone(cstring name);
+	Point* GetPoint(cstring name);
 	void GetKeyframeData(KeyframeBone& keyframe, Animation* ani, uint bone, float time);
+
 	// jeœli szuka hit to zwróci te¿ dla hit1, hit____ itp (u¿ywane dla boxów broni które siê powtarzaj¹)
 	Point* FindPoint(cstring name);
 	Point* FindNextPoint(cstring name, Point* point);
 
 	Header head;
-	/*VB vb;
-	IB ib;*/
+	ID3D11Buffer* vb;
+	ID3D11Buffer* ib;
 	VertexDeclarationId vertex_decl;
 	uint vertex_size;
 	vector<Submesh> subs;
@@ -189,4 +178,3 @@ struct Mesh : public Resource
 	vector<BoneGroup> groups;
 	vector<Split> splits;
 };
-FIXME;

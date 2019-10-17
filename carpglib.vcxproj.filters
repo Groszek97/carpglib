@@ -243,9 +243,6 @@
     <ClInclude Include="include\Notifications.h">
       <Filter>gui controls</Filter>
     </ClInclude>
-    <ClInclude Include="include\LayoutLoader.h">
-      <Filter>resources</Filter>
-    </ClInclude>
     <ClInclude Include="include\Engine.h">
       <Filter>components</Filter>
     </ClInclude>
@@ -265,6 +262,9 @@
       <Filter>entity</Filter>
     </ClInclude>
     <ClInclude Include="include\WICTextureLoader.h">
+      <Filter>loaders</Filter>
+    </ClInclude>
+    <ClInclude Include="include\LayoutLoader.h">
       <Filter>loaders</Filter>
     </ClInclude>
   </ItemGroup>
@@ -474,9 +474,6 @@
     <ClCompile Include="source\Notifications.cpp">
       <Filter>gui controls</Filter>
     </ClCompile>
-    <ClCompile Include="source\LayoutLoader.cpp">
-      <Filter>resources</Filter>
-    </ClCompile>
     <ClCompile Include="source\CrashHandler.cpp">
       <Filter>components</Filter>
     </ClCompile>
@@ -484,6 +481,9 @@
       <Filter>components</Filter>
     </ClCompile>
     <ClCompile Include="source\WICTextureLoader.cpp">
+      <Filter>loaders</Filter>
+    </ClCompile>
+    <ClCompile Include="source\LayoutLoader.cpp">
       <Filter>loaders</Filter>
     </ClCompile>
   </ItemGroup>

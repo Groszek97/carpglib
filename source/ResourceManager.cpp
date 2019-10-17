@@ -552,18 +552,16 @@ void ResourceManager::LoadMesh(Mesh* mesh)
 {
 	try
 	{
-		/*IDirect3DDevice9* device = app::render->GetDevice();
 		if(mesh->IsFile())
 		{
 			FileReader f(mesh->path);
-			mesh->Load(f, device);
+			mesh->Load(f);
 		}
 		else
 		{
 			MemoryReader f(mesh->GetBuffer());
-			mesh->Load(f, device);
-		}*/
-		FIXME;
+			mesh->Load(f);
+		}
 	}
 	catch(cstring err)
 	{

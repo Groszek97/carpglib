@@ -4,9 +4,8 @@
 
 //-----------------------------------------------------------------------------
 // Check tools/pak/pak.txt for specification
-class Pak
+struct Pak
 {
-public:
 	enum Flags
 	{
 		Encrypted = 0x01,

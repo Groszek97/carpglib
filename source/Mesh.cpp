@@ -3,48 +3,29 @@
 #include "Mesh.h"
 #include "ResourceManager.h"
 #include "File.h"
+#include "Render.h"
 #include "DirectX.h"
-
-//---------------------------
-Matrix mat_zero;
-
-struct AVertex
-{
-	Vec3 pos;
-	Vec3 normal;
-	Vec2 tex;
-	Vec3 tangent;
-	Vec3 binormal;
-};
 
 const Vec3 DefaultSpecularColor(1, 1, 1);
 const float DefaultSpecularIntensity = 0.2f;
 const int DefaultSpecularHardness = 10;
 
 //=================================================================================================
-// Konstruktor Mesh
-//=================================================================================================
-Mesh::Mesh() : /*vb(nullptr), ib(nullptr),*/ vertex_decl(VDI_DEFAULT)
+Mesh::Mesh() : vb(nullptr), ib(nullptr), vertex_decl(VDI_DEFAULT)
 {
 }
-FIXME;
 
-//=================================================================================================
-// Destruktor Mesh
 //=================================================================================================
 Mesh::~Mesh()
 {
-	/*SafeRelease(vb);
-	SafeRelease(ib);*/
-	FIXME;
+	SafeRelease(vb);
+	SafeRelease(ib);
 }
 
 //=================================================================================================
-// Wczytywanie modelu z pliku
-//=================================================================================================
-/*void Mesh::Load(StreamReader& stream, IDirect3DDevice9* device)
+void Mesh::Load(StreamReader& stream)
 {
-	assert(device);
+	ID3D11Device* device = app::render->GetDevice();
 
 	LoadHeader(stream);
 	SetVertexSizeDecl();
@@ -55,16 +36,26 @@ Mesh::~Mesh()
 	if(!stream.Ensure(size))
 		throw "Failed to read vertex buffer.";
 
-	// create vertex buffer
-	HRESULT hr = device->CreateVertexBuffer(size, 0, 0, D3DPOOL_MANAGED, &vb, nullptr);
-	if(FAILED(hr))
-		throw Format("Failed to create vertex buffer (%d).", hr);
-
 	// read
-	void* ptr;
-	V(vb->Lock(0, size, &ptr, 0));
-	stream.Read(ptr, size);
-	V(vb->Unlock());
+	vector<byte>* buf = BufPool.Get();
+	buf->resize(size);
+	stream.Read(buf->data(), size);
+
+	// create vertex buffer
+	D3D11_BUFFER_DESC v_desc;
+	v_desc.Usage = D3D11_USAGE_DEFAULT;
+	v_desc.ByteWidth = size;
+	v_desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	v_desc.CPUAccessFlags = 0;
+	v_desc.MiscFlags = 0;
+	v_desc.StructureByteStride = 0;
+
+	D3D11_SUBRESOURCE_DATA v_data;
+	v_data.pSysMem = buf->data();
+
+	HRESULT result = device->CreateBuffer(&v_desc, &v_data, &vb);
+	if(FAILED(result))
+		throw Format("Failed to create vertex buffer (%u).", result);
 
 	// ----- triangles
 	// ensure size
@@ -235,15 +226,13 @@ Mesh::~Mesh()
 		stream.Read(splits.data(), size);
 	}
 }
-*/
-FIXME;
+
 //=================================================================================================
 // Load metadata only from mesh (points)
 void Mesh::LoadMetadata(StreamReader& stream)
 {
-	FIXME;
-	//if(vb)
-	//	return;
+	if(vb)
+		return;
 	LoadHeader(stream);
 	stream.SetPos(head.points_offset);
 	LoadPoints(stream);
@@ -314,6 +303,7 @@ void Mesh::SetVertexSizeDecl()
 	}
 }
 
+//=================================================================================================
 void Mesh::LoadPoints(StreamReader& stream)
 {
 	uint size = Point::MIN_SIZE * head.n_points;
@@ -345,6 +335,7 @@ void Mesh::LoadPoints(StreamReader& stream)
 	}
 }
 
+//=================================================================================================
 void Mesh::LoadBoneGroups(StreamReader& stream)
 {
 	if(!stream.Ensure(BoneGroup::MIN_SIZE * head.n_groups))
@@ -374,6 +365,7 @@ void Mesh::LoadBoneGroups(StreamReader& stream)
 	SetupBoneMatrices();
 }
 
+//=================================================================================================
 void Mesh::LoadMatrix33(StreamReader& stream, Matrix& m)
 {
 	stream.Read(m._11);
