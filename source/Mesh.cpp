@@ -55,23 +55,38 @@ void Mesh::Load(StreamReader& stream)
 
 	HRESULT result = device->CreateBuffer(&v_desc, &v_data, &vb);
 	if(FAILED(result))
+	{
+		BufPool.Free(buf);
 		throw Format("Failed to create vertex buffer (%u).", result);
+	}
 
 	// ----- triangles
 	// ensure size
 	size = sizeof(word) * head.n_tris * 3;
 	if(!stream.Ensure(size))
+	{
+		BufPool.Free(buf);
 		throw "Failed to read index buffer.";
-
-	// create index buffer
-	hr = device->CreateIndexBuffer(size, 0, D3DFMT_INDEX16, D3DPOOL_MANAGED, &ib, nullptr);
-	if(FAILED(hr))
-		throw Format("Failed to create index buffer (%d).", hr);
+	}
 
 	// read
-	V(ib->Lock(0, size, &ptr, 0));
-	stream.Read(ptr, size);
-	V(ib->Unlock());
+	buf->resize(size);
+	stream.Read(buf->data(), size);
+
+	// create index buffer
+	v_desc.Usage = D3D11_USAGE_DEFAULT;
+	v_desc.ByteWidth = size;
+	v_desc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+	v_desc.CPUAccessFlags = 0;
+	v_desc.MiscFlags = 0;
+	v_desc.StructureByteStride = 0;
+
+	v_data.pSysMem = buf->data();
+
+	result = device->CreateBuffer(&v_desc, &v_data, &ib);
+	BufPool.Free(buf);
+	if(FAILED(result))
+		throw Format("Failed to create index buffer (%u).", result);
 
 	// ----- submeshes
 	size = Submesh::MIN_SIZE * head.n_subs;

@@ -106,7 +106,7 @@ private:
 	ID3D11Buffer* vs_buffer;
 	ID3D11Buffer* vb;
 	ID3D11SamplerState* sampler;
-	Texture* tex;
+	Mesh* mesh;
 
 	/*ID3D11DepthStencilState* depth_state[DEPTH_MAX];
 	ID3D11RasterizerState* raster_state[RASTER_MAX];

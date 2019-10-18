@@ -10,6 +10,7 @@
 #include <d3dcompiler.h>
 //
 #include "ResourceManager.h"
+#include "Mesh.h"
 
 Render* app::render;
 const DXGI_FORMAT DISPLAY_FORMAT = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -610,10 +611,9 @@ void Render::Draw(bool call_present)
 	device_context->VSSetShader(vertex_shader, nullptr, 0);
 	device_context->PSSetShader(pixel_shader, nullptr, 0);
 	device_context->PSSetSamplers(0, 1, &sampler);
-	device_context->PSSetShaderResources(0, 1, &tex->view);
 
 	Matrix mat_world = Matrix::RotationY(rot),
-		mat_view = Matrix::CreateLookAt(Vec3(0, 0, -2), Vec3(0, 0, 0)),
+		mat_view = Matrix::CreateLookAt(Vec3(0, 1, -2), Vec3(0, 0, 0)),
 		mat_proj = Matrix::CreatePerspectiveFieldOfView(PI / 4, 1024.f / 768, 0.1f, 50.f),
 		mat_combined = mat_world * mat_view * mat_proj;
 
@@ -624,11 +624,16 @@ void Render::Draw(bool call_present)
 	device_context->Unmap(vs_buffer, 0);
 	device_context->VSSetConstantBuffers(0, 1, &vs_buffer);
 
-	uint stride = sizeof(Vec3) + sizeof(Vec2) + sizeof(Vec4),
+	uint stride = mesh->vertex_size,
 		offset = 0;
-	device_context->IASetVertexBuffers(0, 1, &vb, &stride, &offset);
+	device_context->IASetVertexBuffers(0, 1, &mesh->vb, &stride, &offset);
+	device_context->IASetIndexBuffer(mesh->ib, DXGI_FORMAT_R16_UINT, 0);
 
-	device_context->Draw(6, 0);
+	for(Mesh::Submesh& sub : mesh->subs)
+	{
+		device_context->PSSetShaderResources(0, 1, &sub.tex->view);
+		device_context->DrawIndexed(sub.tris * 3, sub.first * 3, sub.min_ind);
+	}
 
 	V(swap_chain->Present(vsync ? 1 : 0, 0));
 }
@@ -1046,8 +1051,8 @@ void Render::Init2()
 	// create layout
 	D3D11_INPUT_ELEMENT_DESC desc[] = {
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 }
 	};
 	result = device->CreateInputLayout(desc, countof(desc), vs_buf->GetBufferPointer(), vs_buf->GetBufferSize(), &layout);
 	//if(FAILED(result))
@@ -1060,38 +1065,8 @@ void Render::Init2()
 
 	// create mesh
 
-	struct VerTex
-	{
-		Vec3 pos;
-		Vec2 tex;
-		Vec4 color;
-	};
-	VerTex data[6] = {
-		{ Vec3(-0.5f, -0.5f, 0.f), Vec2(0,0), Vec4(1,0,0,1)},
-		{ Vec3(0,0.5f,0), Vec2(0.5f,1), Vec4(0,1,0,1)},
-		{ Vec3(0.5f,-0.5f,0), Vec2(1,0), Vec4(0,0,1,1)},
-		{ Vec3(-0.5f, -0.5f, 0.f), Vec2(0,0), Vec4(1,0,0,1)},
-		{ Vec3(0.5f,-0.5f,0), Vec2(1,0), Vec4(0,0,1,1)},
-		{ Vec3(0,0.5f,0), Vec2(0.5f,1), Vec4(0,1,0,1)}
-	};
-
-	D3D11_BUFFER_DESC v_desc;
-	v_desc.Usage = D3D11_USAGE_DEFAULT;
-	v_desc.ByteWidth = sizeof(data);
-	v_desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	v_desc.CPUAccessFlags = 0;
-	v_desc.MiscFlags = 0;
-	v_desc.StructureByteStride = 0;
-
-	D3D11_SUBRESOURCE_DATA v_data;
-	v_data.pSysMem = data;
-
-	result = device->CreateBuffer(&v_desc, &v_data, &vb);
-	if(FAILED(result))
-		throw Format("Failed to create vertex buffer (%u).", result);
-
 	app::res_mgr->AddDir("data");
-	tex = app::res_mgr->Load<Texture>("woodmgrid1a.jpg");
+	mesh = app::res_mgr->Load<Mesh>("skrzynka.qmsh");
 
 	// create texture sampler
 	D3D11_SAMPLER_DESC sampler_desc;
