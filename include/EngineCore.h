@@ -4,9 +4,11 @@
 #include "FileFormat.h"
 
 // Engine types
-struct CameraBase;
+struct Camera;
 struct MeshInstance;
 struct ParticleEmitter;
+struct Scene;
+struct SceneNode;
 struct TaskData;
 struct Terrain;
 struct TrailParticleEmitter;
@@ -20,6 +22,7 @@ class Input;
 class Render;
 class RenderTarget;
 class ResourceManager;
+class SceneManager;
 class ShaderHandler;
 class SoundManager;
 class SuperShader;
@@ -112,6 +115,7 @@ namespace app
 	extern Input* input;
 	extern Render* render;
 	extern ResourceManager* res_mgr;
+	extern SceneManager* scene_mgr;
 	extern SoundManager* sound_mgr;
 }
 

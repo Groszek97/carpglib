@@ -37,11 +37,11 @@ struct CompileShaderParams
 //-----------------------------------------------------------------------------
 class Render
 {
+	friend class SceneManager;
 public:
 	Render();
 	~Render();
 	void Init();
-	void Draw(bool call_present = true);
 	void RegisterShader(ShaderHandler* shader);
 	//ID3DXEffect* CompileShader(cstring name);
 	//ID3DXEffect* CompileShader(CompileShaderParams& params);
@@ -72,7 +72,6 @@ public:
 	void SetShadersDir(cstring dir) { shaders_dir = dir; }
 
 	void OnChangeResolution();
-	void Init2();
 
 private:
 	void CreateAdapter();
@@ -100,14 +99,6 @@ private:
 	ID3D11DepthStencilView* depth_stencil_view;
 
 
-	ID3D11VertexShader* vertex_shader;
-	ID3D11PixelShader* pixel_shader;
-	ID3D11InputLayout* layout;
-	ID3D11Buffer* vs_buffer;
-	ID3D11Buffer* vb;
-	ID3D11SamplerState* sampler;
-	Mesh* mesh;
-
 	/*ID3D11DepthStencilState* depth_state[DEPTH_MAX];
 	ID3D11RasterizerState* raster_state[RASTER_MAX];
 	ID3D11BlendState* blend_state[BLEND_MAX];*/
@@ -122,8 +113,5 @@ private:
 	Int2 wnd_size;
 	int multisampling, multisampling_quality;
 	bool initialized, vsync, r_alphatest, r_nozwrite, r_nocull, r_alphablend;
-
-	Timer t;
-	float rot;
 };
 FIXME;

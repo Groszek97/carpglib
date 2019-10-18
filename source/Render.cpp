@@ -41,18 +41,7 @@ Render::~Render()
 	}
 	for(int i = 0; i < VDI_MAX; ++i)
 		SafeRelease(vertex_decl[i]);
-	if(device)
-	{
-		device->SetStreamSource(0, nullptr, 0, 0);
-		device->SetIndices(nullptr);
-	}*/
-
-	SafeRelease(vertex_shader);
-	SafeRelease(pixel_shader);
-	SafeRelease(layout);
-	SafeRelease(vs_buffer);
-	SafeRelease(vb);
-	SafeRelease(sampler);
+	*/
 
 	SafeRelease(depth_stencil_view);
 	SafeRelease(render_target);
@@ -563,82 +552,6 @@ void Render::CreateVertexDeclarations()
 }
 
 //=================================================================================================
-void Render::Draw(bool call_present)
-{
-	/*HRESULT hr = device->TestCooperativeLevel();
-	if(hr != D3D_OK)
-	{
-		lost_device = true;
-		if(hr == D3DERR_DEVICELOST)
-		{
-			// device lost, can't reset yet
-			Sleep(1);
-			return;
-		}
-		else if(hr == D3DERR_DEVICENOTRESET)
-		{
-			// try reset
-			if(!Reset(false))
-			{
-				Sleep(1);
-				return;
-			}
-		}
-		else
-			throw Format("Render: Lost directx device (%d).", hr);
-	}
-
-	app::app->OnDraw();
-
-	if(call_present)
-	{
-		hr = device->Present(nullptr, nullptr, app::engine->GetWindowHandle(), nullptr);
-		if(FAILED(hr))
-		{
-			if(hr == D3DERR_DEVICELOST)
-				lost_device = true;
-			else
-				throw Format("Render: Failed to present screen (%d).", hr);
-		}
-	}*/
-
-	rot += t.Tick() * 3;
-
-	device_context->ClearRenderTargetView(render_target, (float*)Vec4(0.1f, 0.1f, 0.1f, 1));
-	device_context->ClearDepthStencilView(depth_stencil_view, D3D11_CLEAR_DEPTH, 1.f, 0);
-
-	device_context->IASetInputLayout(layout);
-	device_context->VSSetShader(vertex_shader, nullptr, 0);
-	device_context->PSSetShader(pixel_shader, nullptr, 0);
-	device_context->PSSetSamplers(0, 1, &sampler);
-
-	Matrix mat_world = Matrix::RotationY(rot),
-		mat_view = Matrix::CreateLookAt(Vec3(0, 1, -2), Vec3(0, 0, 0)),
-		mat_proj = Matrix::CreatePerspectiveFieldOfView(PI / 4, 1024.f / 768, 0.1f, 50.f),
-		mat_combined = mat_world * mat_view * mat_proj;
-
-	D3D11_MAPPED_SUBRESOURCE resource;
-	V(device_context->Map(vs_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &resource));
-	Matrix& g = *(Matrix*)resource.pData;
-	g = mat_combined.Transpose();
-	device_context->Unmap(vs_buffer, 0);
-	device_context->VSSetConstantBuffers(0, 1, &vs_buffer);
-
-	uint stride = mesh->vertex_size,
-		offset = 0;
-	device_context->IASetVertexBuffers(0, 1, &mesh->vb, &stride, &offset);
-	device_context->IASetIndexBuffer(mesh->ib, DXGI_FORMAT_R16_UINT, 0);
-
-	for(Mesh::Submesh& sub : mesh->subs)
-	{
-		device_context->PSSetShaderResources(0, 1, &sub.tex->view);
-		device_context->DrawIndexed(sub.tris * 3, sub.first * 3, sub.min_ind);
-	}
-
-	V(swap_chain->Present(vsync ? 1 : 0, 0));
-}
-
-//=================================================================================================
 void Render::RegisterShader(ShaderHandler* shader)
 {
 	assert(shader);
@@ -1035,65 +948,6 @@ void Render::SetTextureAddressMode(TextureAddressMode mode)
 	/*V(device->SetSamplerState(0, D3DSAMP_ADDRESSU, (D3DTEXTUREADDRESS)mode));
 	V(device->SetSamplerState(0, D3DSAMP_ADDRESSV, (D3DTEXTUREADDRESS)mode));*/
 }
-
-void Render::Init2()
-{
-	ID3DBlob* vs_buf = CompileShader("test.hlsl", "vs_main", true);
-	HRESULT result = device->CreateVertexShader(vs_buf->GetBufferPointer(), vs_buf->GetBufferSize(), nullptr, &vertex_shader);
-	//if(FAILED(result))
-	//	throw Format("Failed to create vertex shader '%s' (%u).", filename, result);
-
-	ID3DBlob* ps_buf = CompileShader("test.hlsl", "ps_main", false);
-	result = device->CreatePixelShader(ps_buf->GetBufferPointer(), ps_buf->GetBufferSize(), nullptr, &pixel_shader);
-	//if(FAILED(result))
-	//	throw Format("Failed to create pixel shader '%s' (%u).", filename, result);
-
-	// create layout
-	D3D11_INPUT_ELEMENT_DESC desc[] = {
-		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 }
-	};
-	result = device->CreateInputLayout(desc, countof(desc), vs_buf->GetBufferPointer(), vs_buf->GetBufferSize(), &layout);
-	//if(FAILED(result))
-	//	throw Format("Failed to create input layout '%s' (%u).", filename, result);
-
-	vs_buffer = CreateConstantBuffer(sizeof(Matrix));
-
-	vs_buf->Release();
-	ps_buf->Release();
-
-	// create mesh
-
-	app::res_mgr->AddDir("data");
-	mesh = app::res_mgr->Load<Mesh>("skrzynka.qmsh");
-
-	// create texture sampler
-	D3D11_SAMPLER_DESC sampler_desc;
-	sampler_desc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-	sampler_desc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-	sampler_desc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-	sampler_desc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-	sampler_desc.MipLODBias = 0.0f;
-	sampler_desc.MaxAnisotropy = 1;
-	sampler_desc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
-	sampler_desc.BorderColor[0] = 0;
-	sampler_desc.BorderColor[1] = 0;
-	sampler_desc.BorderColor[2] = 0;
-	sampler_desc.BorderColor[3] = 0;
-	sampler_desc.MinLOD = 0;
-	sampler_desc.MaxLOD = D3D11_FLOAT32_MAX;
-
-	result = device->CreateSamplerState(&sampler_desc, &sampler);
-	if(FAILED(result))
-		throw Format("Failed to create sampler state (%u).", result);
-
-	// over and out
-
-	t.Start();
-	rot = 0;
-}
-
 
 ID3DBlob* Render::CompileShader(cstring filename, cstring entry, bool is_vertex)
 {

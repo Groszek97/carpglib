@@ -2,6 +2,7 @@
 #include "EngineCore.h"
 #include "Engine.h"
 #include "ResourceManager.h"
+#include "SceneManager.h"
 #include "SoundManager.h"
 #include "Physics.h"
 #include "Render.h"
@@ -23,11 +24,12 @@ wnd_size(1024, 768), in_resize(false), client_size(wnd_size)
 {
 	if(!Logger::GetInstance())
 		Logger::SetInstance(new Logger);
+	app::engine = this;
 	app::gui = new Gui;
 	app::input = new Input;
-	app::engine = this;
 	app::render = new Render;
 	app::res_mgr = new ResourceManager;
+	app::scene_mgr = new SceneManager;
 	app::sound_mgr = new SoundManager;
 }
 
@@ -60,6 +62,7 @@ void Engine::Cleanup()
 	app::app->OnCleanup();
 
 	delete app::input;
+	delete app::scene_mgr;
 	delete app::res_mgr;
 	delete app::render;
 	delete app::gui;
@@ -153,9 +156,9 @@ void Engine::DoTick(bool update_game)
 		}
 		return;
 	}
-	app::input->UpdateMouseWheel(0);
 
-	app::render->Draw();
+	app::input->UpdateMouseWheel(0);
+	app::scene_mgr->Draw();
 	app::input->Update();
 	app::sound_mgr->Update(dt);
 }
@@ -518,8 +521,8 @@ void Engine::Init()
 	app::sound_mgr->Init();
 	phy_world = CustomCollisionWorld::Init();
 	app::res_mgr->Init();
+	app::scene_mgr->Init();
 	app::gui->Init();
-	app::render->Init2();
 	initialized = true;
 }
 

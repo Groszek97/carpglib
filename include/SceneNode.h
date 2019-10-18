@@ -1,7 +1,8 @@
 #pragma once
 
 //-----------------------------------------------------------------------------
-struct CameraBase
+struct SceneNode : public ObjectPoolProxy<SceneNode>
 {
-	Matrix matViewProj;
+	Vec3 pos, rot;
+	Mesh* mesh;
 };
