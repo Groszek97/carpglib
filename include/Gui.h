@@ -132,7 +132,7 @@ public:
 	void SetText(cstring ok, cstring yes, cstring no, cstring cancel);
 	void Draw(bool draw_layers, bool draw_dialogs);
 	bool AddFont(cstring filename);
-	Font* CreateFont(cstring name, int size, int weight, int tex_size, int outline = 0);
+	Font* GetFont(cstring name, int size, int weight);
 	/* zaawansowane renderowanie tekstu (w porównaniu do ID3DXFont)
 	zwraca false je¿eli by³ clipping od do³u (nie kontuuj tekstu w flow)
 	Znak $ oznacza jak¹œ specjaln¹ czynnoœæ (o ile jest ustawiona flaga DTF_PARSE_SPECIAL):
@@ -238,13 +238,11 @@ private:
 	void Lock(bool outline = false);
 	void Flush(bool lock = false);
 	void SkipLine(cstring text, uint line_begin, uint line_end, HitboxContext* hc);
-	//bool CreateFontInternal(Font* font, ID3DXFont* dx_font, int tex_size, int outline, int max_outline);
-	//int TryCreateFontInternal(Font* font, ID3DXFont* dx_font, int tex_size, int outline, int max_outline);
 	void AddRect(const Vec2& left_top, const Vec2& right_bottom, const Vec4& color);
 
+	FontLoader* font_loader;
 	/*IDirect3DDevice9* device;
 	ID3DXSprite* sprite;
-	TEX tFontTarget;
 	TEX tSet, tCurrent, tCurrent2, tPixel;*/
 	int max_tex_size;
 	vector<DialogBox*> created_dialogs;

@@ -10,13 +10,14 @@
 #include "Render.h"
 #include "Input.h"
 #include "ResourceManager.h"
+#include "FontLoader.h"
 #include "DirectX.h"
 
 Gui* app::gui;
 
 //=================================================================================================
-Gui::Gui() : /*tFontTarget(nullptr), vb(nullptr), vb2(nullptr),*/ cursor_mode(CURSOR_NORMAL), vb2_locked(false), focused_ctrl(nullptr), /*tPixel(nullptr),*/
-master_layout(nullptr), layout(nullptr), overlay(nullptr), grayscale(false)/*, vertex_decl(nullptr), effect(nullptr)*/
+Gui::Gui() : /*vb(nullptr), vb2(nullptr),*/ cursor_mode(CURSOR_NORMAL), vb2_locked(false), focused_ctrl(nullptr), /*tPixel(nullptr),*/
+master_layout(nullptr), layout(nullptr), overlay(nullptr), grayscale(false)/*, vertex_decl(nullptr), effect(nullptr)*/, font_loader(nullptr)
 {
 	FIXME;
 }
@@ -31,16 +32,18 @@ Gui::~Gui()
 	delete master_layout;
 	delete layer;
 	delete dialog_layer;
+	delete font_loader;
 }
 
 //=================================================================================================
 void Gui::Init()
 {
+	font_loader = new FontLoader;
+
 	//device = app::render->GetDevice();
 	//sprite = app::render->GetSprite();
 	Control::input = app::input;
 	Control::gui = this;
-	//tFontTarget = nullptr;
 	FIXME;
 	wnd_size = app::engine->GetWindowSize();
 	cursor_pos = wnd_size / 2;
@@ -97,8 +100,7 @@ void Gui::OnReset()
 	/*if(effect)
 		effect->OnLostDevice();
 	SafeRelease(vb);
-	SafeRelease(vb2);
-	SafeRelease(tFontTarget);*/
+	SafeRelease(vb2);*/
 	FIXME;
 }
 
@@ -145,293 +147,24 @@ bool Gui::AddFont(cstring filename)
 }
 
 //=================================================================================================
-Font* Gui::CreateFont(cstring name, int size, int weight, int tex_size, int outline)
+Font* Gui::GetFont(cstring name, int size, int weight)
 {
-	return nullptr;
-#if 0
-	assert(name && size > 0 && IsPow2(tex_size) && outline >= 0);
+	assert(name && size > 0 && InRange(weight, 1, 9));
 
-	string res_name = Format("%s;%d;%d;%d", name, size, weight, outline);
+	string res_name = Format("%s;%d;%d", name, size, weight);
 	Font* existing_font = app::res_mgr->TryGet<Font>(res_name);
 	if(existing_font)
 		return existing_font;
 
-	// oblicz rozmiar czcionki
-	HDC hdc = GetDC(nullptr);
-	//							hack na skalowanie dpi
-	int logic_size = -MulDiv(size, 96/*GetDeviceCaps(hdc, LOGPIXELSX)*/, 72);
+	Font* font = font_loader->Load(name, size, weight);
+	font->type = ResourceType::Font;
+	font->state = ResourceState::Loaded;
+	font->path = res_name;
+	font->filename = font->path.c_str();
+	app::res_mgr->AddResource(font);
 
-	// stwórz czcionkê directx
-	FONT dx_font;
-	HRESULT hr = D3DXCreateFont(device, logic_size, 0, weight, 0, FALSE, DEFAULT_CHARSET, OUT_TT_PRECIS,
-		DEFAULT_QUALITY, PROOF_QUALITY | FF_DONTCARE, name, &dx_font);
-	if(FAILED(hr))
-	{
-		ReleaseDC(nullptr, hdc);
-		Error("Failed to create directx font (%s, size:%d, weight:%d, code:%d).", name, size, weight, hr);
-		return nullptr;
-	}
-
-	// stwórz czcionkê winapi
-	HFONT font = ::CreateFontA(logic_size, 0, 0, 0, weight, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_TT_PRECIS,
-		CLIP_DEFAULT_PRECIS, PROOF_QUALITY, DEFAULT_PITCH | FF_DONTCARE, name);
-	if(!font)
-	{
-		DWORD error = GetLastError();
-		ReleaseDC(nullptr, hdc);
-		dx_font->Release();
-		Error("Failed to create font (%s, size:%d, weight:%d, code:%d).", name, size, weight, error);
-		return nullptr;
-	}
-
-	// pobierz szerokoœci znaków i wysokoœæ czcionki
-	int glyph_w[256];
-	HGDIOBJ prev = SelectObject(hdc, (HGDIOBJ)font);
-	if(GetCharWidth32(hdc, 0, 255, glyph_w) == 0)
-	{
-		ABC abc[256];
-		if(GetCharABCWidths(hdc, 0, 255, abc) == 0)
-		{
-			Error("Failed to get font glyphs (%s, size:%d, weight:%d, error:%d).", name, size, weight, GetLastError());
-			SelectObject(hdc, prev);
-			DeleteObject(font);
-			ReleaseDC(nullptr, hdc);
-			dx_font->Release();
-			return nullptr;
-		}
-		for(int i = 0; i <= 255; ++i)
-		{
-			ABC& a = abc[i];
-			glyph_w[i] = a.abcA + a.abcB + a.abcC;
-		}
-	}
-	TEXTMETRIC tm;
-	GetTextMetricsA(hdc, &tm);
-	int height = tm.tmHeight;
-	SelectObject(hdc, prev);
-	DeleteObject(font);
-	ReleaseDC(nullptr, hdc);
-
-	// stwórz czcionkê
-	Font* f = new Font;
-	int extra = outline + 1;
-
-	// ustaw znaki
-	Int2 offset(extra, extra);
-	bool warn_once = true;
-
-	for(int i = 32; i <= 255; ++i)
-	{
-		int sum = glyph_w[i];
-		if(sum)
-		{
-			if(offset.x + sum >= tex_size - 3)
-			{
-				offset.x = extra;
-				offset.y += height + extra;
-				if(warn_once && offset.y + height > tex_size)
-				{
-					warn_once = false;
-					Warn("Font %s (%d) it too large for texture %d.", name, size, tex_size);
-				}
-			}
-			Font::Glyph& g = f->glyph[i];
-			g.ok = true;
-			g.uv.v1 = Vec2(float(offset.x) / tex_size, float(offset.y) / tex_size);
-			g.uv.v2 = g.uv.v1 + Vec2(float(sum) / tex_size, float(height) / tex_size);
-			g.width = sum;
-			offset.x += sum + 2 + extra;
-		}
-		else
-			f->glyph[i].ok = false;
-	}
-
-	// tab
-	Font::Glyph& tab = f->glyph['\t'];
-	tab.ok = true;
-	tab.width = 32;
-	tab.uv = f->glyph[' '].uv;
-
-	f->height = height;
-	f->outline_shift = float(outline) / tex_size;
-
-	bool error = !CreateFontInternal(f, dx_font, tex_size, 0, outline);
-	if(!error && outline)
-		error = !CreateFontInternal(f, dx_font, tex_size, outline, outline);
-
-	// zwolnij czcionkê
-	SafeRelease(dx_font);
-
-	// przywróæ render target
-	SURFACE surf;
-	V(device->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &surf));
-	V(device->SetRenderTarget(0, surf));
-	surf->Release();
-
-	if(!error)
-	{
-		// zapisz wygenerowan¹ czcionkê do pliku
-		/*D3DXSaveTextureToFile(Format("%s-%d.png", name, size), D3DXIFF_PNG, f->tex, nullptr);
-		if(outline > 0)
-			D3DXSaveTextureToFile(Format("%s-%d-outline.png", name, size), D3DXIFF_PNG, f->texOutline, nullptr);*/
-
-		f->type = ResourceType::Font;
-		f->state = ResourceState::Loaded;
-		f->path = res_name;
-		f->filename = f->path.c_str();
-		app::res_mgr->AddResource(f);
-
-		return f;
-	}
-	else
-	{
-		if(f->tex)
-			f->tex->Release();
-		if(f->texOutline)
-			f->texOutline->Release();
-		delete f;
-		return nullptr;
-	}
-#endif
+	return font;
 }
-
-//=================================================================================================
-//bool Gui::CreateFontInternal(Font* font, ID3DXFont* dx_font, int tex_size, int outline, int max_outline)
-//{
-//	while(true)
-//	{
-//		int result = TryCreateFontInternal(font, dx_font, tex_size, outline, max_outline);
-//		if(result == 0)
-//			return true;
-//		else if(result == 1)
-//			return false;
-//	}
-//}
-FIXME;
-
-//=================================================================================================
-// 0-ok, 1-failed, 2-retry
-/*int Gui::TryCreateFontInternal(Font* font, ID3DXFont* dx_font, int tex_size, int outline, int max_outline)
-{
-	// stwórz render target
-	if(!tFontTarget || tex_size > max_tex_size)
-	{
-		SafeRelease(tFontTarget);
-		HRESULT hr = device->CreateTexture(tex_size, tex_size, 0, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &tFontTarget, nullptr);
-		if(FAILED(hr))
-		{
-			Error("Failed to create font render target texture (size:%d, error:%d).", tex_size, hr);
-			return 1;
-		}
-		max_tex_size = tex_size;
-	}
-
-	// rozpocznij renderowanie do tekstury
-	SURFACE surf;
-	V(tFontTarget->GetSurfaceLevel(0, &surf));
-	V(device->SetRenderTarget(0, surf));
-	V(device->Clear(0, nullptr, D3DCLEAR_ZBUFFER | D3DCLEAR_TARGET, 0, 0, 0));
-	V(device->BeginScene());
-	V(sprite->Begin(D3DXSPRITE_ALPHABLEND));
-
-	int extra = max_outline + 1;
-
-	// renderuj do tekstury
-	Int2 offset(extra, extra);
-	char cbuf[2] = { 0,0 };
-	Rect rect = Rect::Zero;
-
-	if(outline)
-	{
-		for(int i = 32; i <= 255; ++i)
-		{
-			cbuf[0] = (char)i;
-			const Font::Glyph& g = font->glyph[i];
-			if(g.ok)
-			{
-				if(offset.x + g.width >= tex_size - 3)
-				{
-					offset.x = extra;
-					offset.y += font->height + extra;
-				}
-
-				for(int j = 0; j < 8; ++j)
-				{
-					const float a = float(j)*PI / 4;
-					rect.Left() = offset.x + int(outline*sin(a));
-					rect.Top() = offset.y + int(outline*cos(a));
-					dx_font->DrawTextA(sprite, cbuf, 1, (RECT*)&rect, DT_LEFT | DT_NOCLIP, Color::White.value);
-				}
-
-				offset.x += g.width + 2 + extra;
-			}
-		}
-	}
-	else
-	{
-		for(int i = 32; i <= 255; ++i)
-		{
-			cbuf[0] = (char)i;
-			const Font::Glyph& g = font->glyph[i];
-			if(g.ok)
-			{
-				if(offset.x + g.width >= tex_size - 3)
-				{
-					offset.x = extra;
-					offset.y += font->height + extra;
-				}
-				rect.Left() = offset.x;
-				rect.Top() = offset.y;
-				dx_font->DrawTextA(sprite, cbuf, 1, (RECT*)&rect, DT_LEFT | DT_NOCLIP, Color::White.value);
-				offset.x += g.width + 2 + extra;
-			}
-		}
-	}
-
-	// koniec renderowania
-	V(sprite->End());
-	V(device->EndScene());
-
-	TEX tex;
-
-	// stwórz teksturê na now¹ czcionkê
-	HRESULT hr = device->CreateTexture(tex_size, tex_size, 0, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &tex, nullptr);
-	if(FAILED(hr))
-	{
-		Error("Failed to create font texture (size: %d, error: %d).", tex_size, hr);
-		return 1;
-	}
-
-	// kopiuj do nowej tekstury
-	SURFACE out_surf;
-	V(tex->GetSurfaceLevel(0, &out_surf));
-	hr = D3DXLoadSurfaceFromSurface(out_surf, nullptr, nullptr, surf, nullptr, nullptr, D3DX_DEFAULT, 0);
-	if(hr == D3DERR_DEVICELOST)
-	{
-		SURFACE backbuffer;
-		V(device->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backbuffer));
-		V(device->SetRenderTarget(0, backbuffer));
-		backbuffer->Release();
-		surf->Release();
-		app::render->WaitReset();
-		return 2;
-	}
-	else if(FAILED(hr))
-	{
-		Error("Failed to copy font to texture (size: %d, error: %d).", tex_size, hr);
-		return 1;
-	}
-	surf->Release();
-	out_surf->Release();
-
-	if(outline)
-		font->texOutline = tex;
-	else
-		font->tex = tex;
-
-	return 0;
-}*/
-FIXME;
 
 //=================================================================================================
 // Draw text - rewritten from TFQ
@@ -2502,7 +2235,7 @@ void Gui::DrawArea(const Box2d& rect, const AreaLayout& area_layout, const Box2d
 		{
 			assert(!clip_rect);
 
-			FIXME; 
+			FIXME;
 			//tCurrent = tPixel;
 			Lock();
 			AddRect(rect.LeftTop(), rect.RightBottom(), Color(area_layout.background_color));

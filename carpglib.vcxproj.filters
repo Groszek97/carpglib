@@ -276,6 +276,9 @@
     <ClInclude Include="include\Scene.h">
       <Filter>entity</Filter>
     </ClInclude>
+    <ClInclude Include="include\FontLoader.h">
+      <Filter>loaders</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source\BoxToBox.cpp">
@@ -500,6 +503,9 @@
     </ClCompile>
     <ClCompile Include="source\Scene.cpp">
       <Filter>entity</Filter>
+    </ClCompile>
+    <ClCompile Include="source\FontLoader.cpp">
+      <Filter>loaders</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

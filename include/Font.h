@@ -37,8 +37,7 @@ struct Font : public Resource
 		uint begin, end, count, width;
 	};
 
-	FIXME;
-	//TEX tex, texOutline;
+	ID3D11ShaderResourceView* view;
 	int height;
 	float outline_shift;
 	Glyph glyph[256];
