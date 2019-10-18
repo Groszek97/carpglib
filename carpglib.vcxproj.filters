@@ -279,6 +279,9 @@
     <ClInclude Include="include\FontLoader.h">
       <Filter>loaders</Filter>
     </ClInclude>
+    <ClInclude Include="include\GuiShader.h">
+      <Filter>shaders</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source\BoxToBox.cpp">
@@ -506,6 +509,9 @@
     </ClCompile>
     <ClCompile Include="source\FontLoader.cpp">
       <Filter>loaders</Filter>
+    </ClCompile>
+    <ClCompile Include="source\GuiShader.cpp">
+      <Filter>shaders</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

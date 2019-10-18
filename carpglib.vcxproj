@@ -52,6 +52,7 @@
     <ClInclude Include="include\GuiDialog.h" />
     <ClInclude Include="include\GuiElement.h" />
     <ClInclude Include="include\GuiRect.h" />
+    <ClInclude Include="include\GuiShader.h" />
     <ClInclude Include="include\InputTextBox.h" />
     <ClInclude Include="include\Key.h" />
     <ClInclude Include="include\Input.h" />
@@ -144,6 +145,7 @@
     <ClCompile Include="source\Gui.cpp" />
     <ClCompile Include="source\GuiContainer.cpp" />
     <ClCompile Include="source\GuiDialog.cpp" />
+    <ClCompile Include="source\GuiShader.cpp" />
     <ClCompile Include="source\InputTextBox.cpp" />
     <ClCompile Include="source\Input.cpp" />
     <ClCompile Include="source\Label.cpp" />
