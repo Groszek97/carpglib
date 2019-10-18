@@ -20,7 +20,7 @@ namespace layout
 class TextBox : public Control, public LayoutControl<layout::TextBox>, public OnCharHandler
 {
 public:
-	explicit TextBox(bool is_new = false);
+	TextBox();
 	~TextBox();
 
 	// from Control
@@ -32,7 +32,6 @@ public:
 	// new
 	virtual void OnTextChanged() {}
 
-	void AddScrollbar();
 	void Move(const Int2& global_pos);
 	void Add(cstring str);
 	void CalculateOffset(bool center);
@@ -46,7 +45,11 @@ public:
 	bool IsNumeric() const { return numeric; }
 	bool IsReadonly() const { return readonly; }
 	void SetMultiline(bool new_multiline) { assert(!initialized); multiline = new_multiline; }
-	void SetNumeric(bool new_numeric) { numeric = new_numeric; }
+	void SetNumeric(bool new_numeric)
+	{
+		assert(0); // TODO - new gui
+		numeric = new_numeric;
+	}
 	void SetReadonly(bool new_readonly) { readonly = new_readonly; }
 
 	int limit, num_min, num_max;
