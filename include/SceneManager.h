@@ -14,6 +14,9 @@ public:
 	void SetActive(Camera* camera) { this->camera = camera; }
 
 private:
+	void DrawScene();
+
+	ID3D11DeviceContext* device_context;
 	vector<Scene*> scenes;
 	vector<Camera*> cameras;
 	Scene* scene;

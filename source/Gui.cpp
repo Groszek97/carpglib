@@ -10,113 +10,45 @@
 #include "Render.h"
 #include "Input.h"
 #include "ResourceManager.h"
+#include "GuiShader.h"
 #include "FontLoader.h"
-#include "DirectX.h"
+#include "WindowsIncludes.h"
 
 Gui* app::gui;
 
 //=================================================================================================
-Gui::Gui() : /*vb(nullptr), vb2(nullptr),*/ cursor_mode(CURSOR_NORMAL), vb2_locked(false), focused_ctrl(nullptr), /*tPixel(nullptr),*/
-master_layout(nullptr), layout(nullptr), overlay(nullptr), grayscale(false)/*, vertex_decl(nullptr), effect(nullptr)*/, font_loader(nullptr)
+Gui::Gui() : cursor_mode(CURSOR_NORMAL), focused_ctrl(nullptr), master_layout(nullptr), layout(nullptr), overlay(nullptr), grayscale(false),
+font_loader(nullptr), shader(nullptr), current_tex(nullptr), in_buffer(0)
 {
-	FIXME;
 }
 
 //=================================================================================================
 Gui::~Gui()
 {
-	OnRelease();
 	DeleteElements(created_dialogs);
-	//SafeRelease(tPixel);
-	FIXME;
 	delete master_layout;
 	delete layer;
 	delete dialog_layer;
+	delete shader;
 	delete font_loader;
 }
 
 //=================================================================================================
 void Gui::Init()
 {
+	shader = new GuiShader;
 	font_loader = new FontLoader;
 
-	//device = app::render->GetDevice();
-	//sprite = app::render->GetSprite();
 	Control::input = app::input;
 	Control::gui = this;
-	FIXME;
+
 	wnd_size = app::engine->GetWindowSize();
 	cursor_pos = wnd_size / 2;
-
-	CreateVertexBuffer();
-
-	color_table[1] = Vec4(1, 0, 0, 1);
-	color_table[2] = Vec4(0, 1, 0, 1);
-	color_table[3] = Vec4(1, 1, 0, 1);
-	color_table[4] = Vec4(1, 1, 1, 1);
-	color_table[5] = Vec4(0, 0, 0, 1);
+	v = &verts[0];
 
 	layer = new Container;
 	layer->auto_focus = true;
 	dialog_layer = new Container;
-
-	// create pixel texture
-	/*V(D3DXCreateTexture(device, 1, 1, 0, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &tPixel));
-	D3DLOCKED_RECT lock;
-	V(tPixel->LockRect(0, &lock, nullptr, 0));
-	*((DWORD*)lock.pBits) = Color(255, 255, 255).value;
-	V(tPixel->UnlockRect(0));
-
-	// create vertex declaration
-	const D3DVERTEXELEMENT9 v[] = {
-		{ 0, 0,  D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_POSITION,		0 },
-		{ 0, 12, D3DDECLTYPE_FLOAT2,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_TEXCOORD,		0 },
-		{ 0, 20, D3DDECLTYPE_FLOAT4,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_COLOR,			0 },
-		D3DDECL_END()
-	};
-	V(device->CreateVertexDeclaration(v, &vertex_decl));
-
-	app::render->RegisterShader(this);*/
-	FIXME;
-}
-
-//=================================================================================================
-void Gui::OnInit()
-{
-	/*effect = app::render->CompileShader("gui.fx");
-	techGui = effect->GetTechniqueByName("gui");
-	techGui2 = effect->GetTechniqueByName("gui2");
-	techGuiGrayscale = effect->GetTechniqueByName("gui_grayscale");
-	hGuiSize = effect->GetParameterByName(nullptr, "size");
-	hGuiTex = effect->GetParameterByName(nullptr, "tex0");
-	assert(techGui && techGui2 && techGuiGrayscale && hGuiSize && hGuiTex);*/
-	FIXME;
-}
-
-//=================================================================================================
-void Gui::OnReset()
-{
-	/*if(effect)
-		effect->OnLostDevice();
-	SafeRelease(vb);
-	SafeRelease(vb2);*/
-	FIXME;
-}
-
-//=================================================================================================
-void Gui::OnReload()
-{
-	//if(effect)
-	//	effect->OnResetDevice();
-	FIXME;
-	CreateVertexBuffer();
-}
-
-//=================================================================================================
-void Gui::OnRelease()
-{
-	//SafeRelease(effect);
-	FIXME;
 }
 
 //=================================================================================================
@@ -170,10 +102,6 @@ Font* Gui::GetFont(cstring name, int size, int weight)
 bool Gui::DrawText(Font* font, Cstring str, uint flags, Color color, const Rect& rect, const Rect* clipping, vector<Hitbox>* hitboxes,
 	int* hitbox_counter, const vector<TextLine>* lines)
 {
-
-	FIXME;
-	return false;
-#if 0
 	assert(font);
 
 	uint line_begin, line_end, line_index = 0;
@@ -185,13 +113,10 @@ bool Gui::DrawText(Font* font, Cstring str, uint flags, Color color, const Rect&
 	outline_alpha = current_color.w;
 	const Vec2 scale(1, 1);
 
-	bool outline = (IsSet(flags, DTF_OUTLINE) && font->texOutline);
 	bool parse_special = IsSet(flags, DTF_PARSE_SPECIAL);
 	bool bottom_clip = false;
 
-	tCurrent = font->tex;
-	if(outline)
-		tCurrent2 = font->texOutline;
+	Lock(font->tex, 1);
 
 	HitboxContext* hc;
 	if(hitboxes)
@@ -203,18 +128,6 @@ bool Gui::DrawText(Font* font, Cstring str, uint flags, Color color, const Rect&
 	}
 	else
 		hc = nullptr;
-
-	Lock(outline);
-
-	typedef void (Gui::*DrawLineF)(Font* font, cstring text, uint line_begin, uint line_end, const Vec4& def_color,
-		Vec4& color, int x, int y, const Rect* clipping, HitboxContext* hc, bool parse_special, const Vec2& scale);
-	DrawLineF call;
-	if(outline)
-		call = &Gui::DrawLineOutline;
-	else
-		call = &Gui::DrawLine;
-
-#define CALL (this->*call)
 
 	if(!IsSet(flags, DTF_VCENTER | DTF_BOTTOM))
 	{
@@ -238,9 +151,9 @@ bool Gui::DrawText(Font* font, Cstring str, uint flags, Color color, const Rect&
 
 				// znaki w tej linijce
 				if(clip_result == 0)
-					CALL(font, text, line_begin, line_end, default_color, current_color, x, y, nullptr, hc, parse_special, scale);
+					DrawTextLine(font, text, line_begin, line_end, default_color, current_color, x, y, nullptr, hc, parse_special, scale);
 				else if(clip_result == 5)
-					CALL(font, text, line_begin, line_end, default_color, current_color, x, y, clipping, hc, parse_special, scale);
+					DrawTextLine(font, text, line_begin, line_end, default_color, current_color, x, y, clipping, hc, parse_special, scale);
 				else if(clip_result == 2)
 				{
 					// tekst jest pod widocznym regionem, przerwij rysowanie
@@ -250,7 +163,7 @@ bool Gui::DrawText(Font* font, Cstring str, uint flags, Color color, const Rect&
 				else
 				{
 					// pomiñ hitbox
-					SkipLine(text, line_begin, line_end, hc);
+					SkipTextLine(text, line_begin, line_end, hc);
 				}
 
 				// zmieñ y na kolejn¹ linijkê
@@ -274,9 +187,9 @@ bool Gui::DrawText(Font* font, Cstring str, uint flags, Color color, const Rect&
 
 				// znaki w tej linijce
 				if(clip_result == 0)
-					CALL(font, text, it->begin, it->end, default_color, current_color, x, y, nullptr, hc, parse_special, scale);
+					DrawTextLine(font, text, it->begin, it->end, default_color, current_color, x, y, nullptr, hc, parse_special, scale);
 				else if(clip_result == 5)
-					CALL(font, text, it->begin, it->end, default_color, current_color, x, y, clipping, hc, parse_special, scale);
+					DrawTextLine(font, text, it->begin, it->end, default_color, current_color, x, y, clipping, hc, parse_special, scale);
 				else if(clip_result == 2)
 				{
 					// tekst jest pod widocznym regionem, przerwij rysowanie
@@ -286,7 +199,7 @@ bool Gui::DrawText(Font* font, Cstring str, uint flags, Color color, const Rect&
 				else
 				{
 					// pomiñ hitbox
-					SkipLine(text, it->begin, it->end, hc);
+					SkipTextLine(text, it->begin, it->end, hc);
 				}
 
 				// zmieñ y na kolejn¹ linijkê
@@ -331,9 +244,9 @@ bool Gui::DrawText(Font* font, Cstring str, uint flags, Color color, const Rect&
 
 			// znaki w tej linijce
 			if(clip_result == 0)
-				CALL(font, text, it->begin, it->end, default_color, current_color, x, y, nullptr, hc, parse_special, scale);
+				DrawTextLine(font, text, it->begin, it->end, default_color, current_color, x, y, nullptr, hc, parse_special, scale);
 			else if(clip_result == 5)
-				CALL(font, text, it->begin, it->end, default_color, current_color, x, y, clipping, hc, parse_special, scale);
+				DrawTextLine(font, text, it->begin, it->end, default_color, current_color, x, y, clipping, hc, parse_special, scale);
 			else if(clip_result == 2)
 			{
 				// tekst jest pod widocznym regionem, przerwij rysowanie
@@ -343,7 +256,7 @@ bool Gui::DrawText(Font* font, Cstring str, uint flags, Color color, const Rect&
 			else if(hitboxes)
 			{
 				// pomiñ hitbox
-				SkipLine(text, it->begin, it->end, hc);
+				SkipTextLine(text, it->begin, it->end, hc);
 			}
 
 			// zmieñ y na kolejn¹ linijkê
@@ -351,17 +264,14 @@ bool Gui::DrawText(Font* font, Cstring str, uint flags, Color color, const Rect&
 		}
 	}
 
-	Flush();
-
 	if(hitbox_counter)
 		*hitbox_counter = hc->counter;
 
 	return !bottom_clip;
-#endif
 }
 
 //=================================================================================================
-void Gui::DrawLine(Font* font, cstring text, uint line_begin, uint line_end, const Vec4& default_color, Vec4& current_color,
+void Gui::DrawTextLine(Font* font, cstring text, uint line_begin, uint line_end, const Vec4& default_color, Vec4& current_color,
 	int x, int y, const Rect* clipping, HitboxContext* hc, bool parse_special, const Vec2& scale)
 {
 	for(uint i = line_begin; i < line_end; ++i)
@@ -627,8 +537,8 @@ void Gui::DrawLine(Font* font, cstring text, uint line_begin, uint line_end, con
 		}
 
 		x += glyph_size.x;
-		if(in_buffer == 256)
-			Flush(true);
+		if(in_buffer == MAX_QUADS)
+			Flush();
 	}
 
 	// zamknij region
@@ -648,297 +558,39 @@ void Gui::DrawLine(Font* font, cstring text, uint line_begin, uint line_end, con
 }
 
 //=================================================================================================
-void Gui::DrawLineOutline(Font* font, cstring text, uint line_begin, uint line_end, const Vec4& default_color, Vec4& current_color,
-	int x, int y, const Rect* clipping, HitboxContext* hc, bool parse_special, const Vec2& scale)
+void Gui::Lock(TEX tex, uint count)
 {
-	// scale is TODO here
-	assert(scale == Vec2(1, 1));
-
-	Vec4 col(0, 0, 0, outline_alpha);
-	int prev_x = x, prev_y = y;
-
-	// przesuniêcie glifu przez outline
-	const float osh = font->outline_shift;
-
-	for(uint i = line_begin; i < line_end; ++i)
+	if(tex != current_tex)
 	{
-		char c = text[i];
-		if(c == '$' && parse_special)
-		{
-			++i;
-			assert(i < line_end);
-			c = text[i];
-			if(c == 'c')
-			{
-				// kolor
-				++i;
-				assert(i < line_end);
-				continue;
-			}
-			else if(c == 'h')
-			{
-				++i;
-				assert(i < line_end);
-				continue;
-			}
-			else if(c == 'g')
-			{
-				++i;
-				assert(i < line_end);
-				c = text[i];
-				if(c == '+')
-				{
-					++i;
-					assert(i < line_end);
-					int tmp;
-					font->ParseGroupIndex(text, line_end, i, tmp, tmp);
-				}
-				else if(c == '-')
-					continue;
-				else
-				{
-					// invalid group format
-					assert(0);
-				}
-			}
-			else if(c == '$')
-			{
-				// dwa znaki $$ to $
-			}
-			else
-			{
-				// nieznana opcja
-				assert(0);
-			}
-		}
-
-		Font::Glyph& g = font->glyph[byte(c)];
-
-		int clip_result = (clipping ? Clip(x, y, g.width, font->height, clipping) : 0);
-
-		if(clip_result == 0)
-		{
-			// dodaj znak do bufora
-			v2->pos = Vec3(float(x) - osh, float(y) - osh, 0);
-			v2->color = col;
-			v2->tex = g.uv.LeftTop();
-			++v2;
-
-			v2->pos = Vec3(float(x + g.width) + osh, float(y) - osh, 0);
-			v2->color = col;
-			v2->tex = g.uv.RightTop();
-			++v2;
-
-			v2->pos = Vec3(float(x) - osh, float(y + font->height) + osh, 0);
-			v2->color = col;
-			v2->tex = g.uv.LeftBottom();
-			++v2;
-
-			v2->pos = Vec3(float(x + g.width) + osh, float(y) - osh, 0);
-			v2->color = col;
-			v2->tex = g.uv.RightTop();
-			++v2;
-
-			v2->pos = Vec3(float(x + g.width) + osh, float(y + font->height) + osh, 0);
-			v2->color = col;
-			v2->tex = g.uv.RightBottom();
-			++v2;
-
-			v2->pos = Vec3(float(x) - osh, float(y + font->height) + osh, 0);
-			v2->color = col;
-			v2->tex = g.uv.LeftBottom();
-			++v2;
-
-			if(hc && hc->open != HitboxOpen::No)
-			{
-				Rect r_clip(x, y, x + g.width, y + font->height);
-				if(hc->region.Left() == INT_MAX)
-					hc->region = r_clip;
-				else
-					hc->region.Resize(r_clip);
-			}
-
-			++in_buffer2;
-			x += g.width;
-		}
-		else if(clip_result == 5)
-		{
-			// przytnij znak
-			Box2d orig_pos(float(x) - osh, float(y) - osh, float(x + g.width) + osh, float(y + font->height) + osh);
-			Box2d clip_pos(float(max(x, clipping->Left())), float(max(y, clipping->Top())),
-				float(min(x + g.width, clipping->Right())), float(min(y + font->height, clipping->Bottom())));
-			Vec2 orig_size = orig_pos.Size();
-			Vec2 clip_size = clip_pos.Size();
-			Vec2 s(clip_size.x / orig_size.x, clip_size.y / orig_size.y);
-			Vec2 shift = clip_pos.v1 - orig_pos.v1;
-			shift.x /= orig_size.x;
-			shift.y /= orig_size.y;
-			Vec2 uv_size = g.uv.Size();
-			Box2d clip_uv(g.uv.v1 + Vec2(shift.x*uv_size.x, shift.y*uv_size.y));
-			clip_uv.v2 += Vec2(uv_size.x*s.x, uv_size.y*s.y);
-
-			// dodaj znak do bufora
-			v2->pos = clip_pos.LeftTop().XY();
-			v2->color = col;
-			v2->tex = clip_uv.LeftTop();
-			++v2;
-
-			v2->pos = clip_pos.RightTop().XY();
-			v2->color = col;
-			v2->tex = clip_uv.RightTop();
-			++v2;
-
-			v2->pos = clip_pos.LeftBottom().XY();
-			v2->color = col;
-			v2->tex = clip_uv.LeftBottom();
-			++v2;
-
-			v2->pos = clip_pos.RightTop().XY();
-			v2->color = col;
-			v2->tex = clip_uv.RightTop();
-			++v2;
-
-			v2->pos = clip_pos.RightBottom().XY();
-			v2->color = col;
-			v2->tex = clip_uv.RightBottom();
-			++v2;
-
-			v2->pos = clip_pos.LeftBottom().XY();
-			v2->color = col;
-			v2->tex = clip_uv.LeftBottom();
-			++v2;
-
-			if(hc && hc->open != HitboxOpen::No)
-			{
-				Rect r_clip(clip_pos);
-				if(hc->region.Left() == INT_MAX)
-					hc->region = r_clip;
-				else
-					hc->region.Resize(r_clip);
-			}
-
-			++in_buffer2;
-			x += g.width;
-		}
-		else if(clip_result == 3)
-		{
-			// tekst jest ju¿ poza regionem z prawej, mo¿na przerwaæ
-			break;
-		}
-		else
-			x += g.width;
-
-		if(in_buffer2 == 256)
-			Flush(true);
+		if(in_buffer > 0)
+			Flush();
+		current_tex = tex;
 	}
-
-	DrawLine(font, text, line_begin, line_end, default_color, current_color, prev_x, prev_y, clipping, hc, parse_special, scale);
+	else if(in_buffer + count > MAX_QUADS)
+		Flush();
 }
 
 //=================================================================================================
-void Gui::Lock(bool outline)
+void Gui::Flush()
 {
-	/*V(vb->Lock(0, 0, (void**)&v, D3DLOCK_DISCARD));
+	if(in_buffer == 0)
+		return;
+	shader->Draw(current_tex, verts, in_buffer);
 	in_buffer = 0;
-
-	if(outline)
-	{
-		V(vb2->Lock(0, 0, (void**)&v2, D3DLOCK_DISCARD));
-		in_buffer2 = 0;
-		vb2_locked = true;
-	}
-	else
-		vb2_locked = false;*/
-	FIXME;
+	v = &verts[0];
 }
 
 //=================================================================================================
-void Gui::Flush(bool lock)
+void Gui::Draw()
 {
-	//if(vb2_locked)
-	//{
-	//	// odblokuj drugi bufor
-	//	V(vb2->Unlock());
-
-	//	// rysuj o ile jest co
-	//	if(in_buffer2)
-	//	{
-	//		// ustaw teksturê
-	//		if(tCurrent2 != tSet)
-	//		{
-	//			tSet = tCurrent2;
-	//			V(effect->SetTexture(hGuiTex, tSet));
-	//			V(effect->CommitChanges());
-	//		}
-
-	//		// rysuj
-	//		V(device->SetStreamSource(0, vb2, 0, sizeof(VParticle)));
-	//		V(device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, in_buffer * 2));
-	//	}
-	//}
-
-	//V(vb->Unlock());
-
-	//if(in_buffer)
-	//{
-	//	// ustaw teksturê
-	//	if(tCurrent != tSet)
-	//	{
-	//		tSet = tCurrent;
-	//		V(effect->SetTexture(hGuiTex, tSet));
-	//		V(effect->CommitChanges());
-	//	}
-
-	//	// rysuj
-	//	V(device->SetStreamSource(0, vb, 0, sizeof(VParticle)));
-	//	V(device->DrawPrimitive(D3DPT_TRIANGLELIST, 0, in_buffer * 2));
-	//}
-
-	//if(lock)
-	//	Lock(vb2_locked);
-	//else
-	//	vb2_locked = false;
-	FIXME;
-}
-
-//=================================================================================================
-void Gui::Draw(bool draw_layers, bool draw_dialogs)
-{
-	FIXME;
-#if 0
 	PROFILER_BLOCK("DrawGui");
 
 	wnd_size = app::engine->GetWindowSize();
 
-	if(!draw_layers && !draw_dialogs)
-		return;
+	shader->Prepare();
 
-	app::render->SetAlphaTest(false);
-	app::render->SetAlphaBlend(true);
-	app::render->SetNoCulling(true);
-	app::render->SetNoZWrite(false);
-
-	V(device->SetVertexDeclaration(vertex_decl));
-
-	tSet = nullptr;
-	tCurrent = nullptr;
-	tCurrent2 = nullptr;
-
-	uint passes;
-
-	V(effect->SetTechnique(techGui));
-	Vec4 wnd_s(float(wnd_size.x), float(wnd_size.y), 0, 0);
-	V(effect->SetVector(hGuiSize, (D3DXVECTOR4*)&wnd_s));
-	V(effect->Begin(&passes, 0));
-	V(effect->BeginPass(0));
-
-	// rysowanie
-	if(draw_layers)
-		layer->Draw();
-	if(draw_dialogs)
-		dialog_layer->Draw();
-
-	// draw cursor
+	layer->Draw();
+	dialog_layer->Draw();
 	if(NeedCursor())
 	{
 		Int2 pos = cursor_pos;
@@ -946,10 +598,13 @@ void Gui::Draw(bool draw_layers, bool draw_dialogs)
 			pos -= Int2(3, 8);
 		DrawSprite(layout->cursor[cursor_mode], pos);
 	}
+	Flush();
 
-	V(effect->EndPass());
-	V(effect->End());
-#endif
+
+	/*app::render->SetAlphaTest(false);
+	app::render->SetAlphaBlend(true);
+	app::render->SetNoCulling(true);
+	app::render->SetNoZWrite(false);*/
 }
 
 //=================================================================================================
@@ -987,9 +642,7 @@ void Gui::DrawItem(Texture* t, const Int2& item_pos, const Int2& item_size, Colo
 		return;
 	}
 
-	FIXME;
-	//tCurrent = t->tex;
-	Lock();
+	Lock(t->tex, 9);
 
 	Vec4 col = Color(color);
 
@@ -1067,8 +720,6 @@ void Gui::DrawItem(Texture* t, const Int2& item_pos, const Int2& item_size, Colo
 
 	if(require_clip)
 	{
-		in_buffer = 0;
-
 		for(int i = 0; i < 9; ++i)
 		{
 			int index1 = ids[i * 2 + 0];
@@ -1080,9 +731,6 @@ void Gui::DrawItem(Texture* t, const Int2& item_pos, const Int2& item_size, Colo
 				++in_buffer;
 			}
 		}
-
-		assert(in_buffer > 0);
-		Flush();
 	}
 	else
 	{
@@ -1093,9 +741,7 @@ void Gui::DrawItem(Texture* t, const Int2& item_pos, const Int2& item_size, Colo
 			gui_rect.Set(ipos[index1], ipos[index2], itex[index1], itex[index2]);
 			gui_rect.Populate(v, col);
 		}
-
-		in_buffer = 9;
-		Flush();
+		in_buffer += 9;
 	}
 }
 
@@ -1160,9 +806,7 @@ void Gui::DrawSprite(Texture* t, const Int2& pos, Color color, const Rect* clipp
 	if(clip_result > 0 && clip_result < 5)
 		return;
 
-	FIXME;
-	//tCurrent = t->tex;
-	Lock();
+	Lock(t->tex, 1);
 
 	Vec4 col = Color(color);
 
@@ -1198,8 +842,7 @@ void Gui::DrawSprite(Texture* t, const Int2& pos, Color color, const Rect* clipp
 		v->tex = Vec2(1, 1);
 		++v;
 
-		in_buffer = 1;
-		Flush();
+		++in_buffer;
 	}
 	else
 	{
@@ -1245,29 +888,8 @@ void Gui::DrawSprite(Texture* t, const Int2& pos, Color color, const Rect* clipp
 		v->tex = clip_uv.RightBottom();
 		++v;
 
-		in_buffer = 1;
-		Flush();
+		++in_buffer;
 	}
-}
-
-//=================================================================================================
-void Gui::OnClean()
-{
-	OnReset();
-
-	delete layer;
-	delete dialog_layer;
-}
-
-//=================================================================================================
-void Gui::CreateVertexBuffer()
-{
-	FIXME;
-	/*if(device)
-	{
-		V(device->CreateVertexBuffer(sizeof(VParticle) * 6 * 256, D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC, 0, D3DPOOL_DEFAULT, &vb, nullptr));
-		V(device->CreateVertexBuffer(sizeof(VParticle) * 6 * 256, D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC, 0, D3DPOOL_DEFAULT, &vb2, nullptr));
-	}*/
 }
 
 //=================================================================================================
@@ -1315,7 +937,7 @@ int Gui::Clip(int x, int y, int w, int h, const Rect* clipping)
 }
 
 //=================================================================================================
-void Gui::SkipLine(cstring text, uint line_begin, uint line_end, HitboxContext* hc)
+void Gui::SkipTextLine(cstring text, uint line_begin, uint line_end, HitboxContext* hc)
 {
 	for(uint i = line_begin; i < line_end; ++i)
 	{
@@ -1616,9 +1238,7 @@ void Gui::DrawSpriteFull(Texture* t, const Color color)
 {
 	assert(t && t->IsLoaded());
 
-	FIXME;
-	//tCurrent = t->tex;
-	Lock();
+	Lock(t->tex, 1);
 
 	Vec4 col = Color(color);
 
@@ -1652,8 +1272,7 @@ void Gui::DrawSpriteFull(Texture* t, const Color color)
 	v->tex = Vec2(1, 1);
 	++v;
 
-	in_buffer = 1;
-	Flush();
+	++in_buffer;
 }
 
 //=================================================================================================
@@ -1697,9 +1316,7 @@ void Gui::DrawSpriteRect(Texture* t, const Rect& rect, Color color)
 {
 	assert(t && t->IsLoaded());
 
-	FIXME;
-	//tCurrent = t->tex;
-	Lock();
+	Lock(t->tex, 1);
 
 	Vec4 col = Color(color);
 
@@ -1733,8 +1350,7 @@ void Gui::DrawSpriteRect(Texture* t, const Rect& rect, Color color)
 	v->tex = Vec2(1, 1);
 	++v;
 
-	in_buffer = 1;
-	Flush();
+	++in_buffer;
 }
 
 //=================================================================================================
@@ -1784,9 +1400,7 @@ void Gui::DrawSpriteRectPart(Texture* t, const Rect& rect, const Rect& part, Col
 {
 	assert(t && t->IsLoaded());
 
-	FIXME;
-	//tCurrent = t->tex;
-	Lock();
+	Lock(t->tex, 1);
 
 	Int2 size = t->GetSize();
 	Vec4 col = Color(color);
@@ -1822,8 +1436,7 @@ void Gui::DrawSpriteRectPart(Texture* t, const Rect& rect, const Rect& part, Col
 	v->tex = uv.RightBottom();
 	++v;
 
-	in_buffer = 1;
-	Flush();
+	++in_buffer;
 }
 
 //=================================================================================================
@@ -1833,9 +1446,7 @@ void Gui::DrawSpriteTransform(Texture* t, const Matrix& mat, Color color)
 
 	Int2 size = t->GetSize();
 
-	FIXME;
-	//tCurrent = t->tex;
-	Lock();
+	Lock(t->tex, 1);
 
 	Vec4 col = Color(color);
 
@@ -1879,8 +1490,7 @@ void Gui::DrawSpriteTransform(Texture* t, const Matrix& mat, Color color)
 	v->tex = Vec2(1, 1);
 	++v;
 
-	in_buffer = 1;
-	Flush();
+	++in_buffer;
 }
 
 //=================================================================================================
@@ -1888,7 +1498,8 @@ void Gui::DrawLine(const Vec2* lines, uint count, Color color, bool strip)
 {
 	assert(lines && count);
 
-	Lock();
+	FIXME;
+	//Lock();
 
 	Vec4 col = Color(color);
 	uint counter = count;
@@ -2035,9 +1646,7 @@ void Gui::DrawSpriteTransformPart(Texture* t, const Matrix& mat, const Rect& par
 
 	Int2 size = t->GetSize();
 
-	FIXME;
-	//tCurrent = t->tex;
-	Lock();
+	Lock(t->tex, 1);
 
 	Box2d uv(float(part.Left()) / size.x, float(part.Top() / size.y), float(part.Right()) / size.x, float(part.Bottom()) / size.y);
 
@@ -2083,8 +1692,7 @@ void Gui::DrawSpriteTransformPart(Texture* t, const Matrix& mat, const Rect& par
 	v->tex = uv.RightBottom();
 	++v;
 
-	in_buffer = 1;
-	Flush();
+	++in_buffer;
 }
 
 //=================================================================================================
@@ -2155,15 +1763,12 @@ void Gui::DrawSprite2(Texture* t, const Matrix& mat, const Rect* part, const Rec
 	if(clipping && !rect.Clip(*clipping))
 		return;
 
-	FIXME;
-	//tCurrent = t->tex;
-	Lock();
+	Lock(t->tex, 1);
 
 	// fill vertex buffer
 	Vec4 col = color;
 	rect.Populate(v, col);
-	in_buffer = 1;
-	Flush();
+	++in_buffer;
 }
 
 //=================================================================================================
@@ -2198,14 +1803,10 @@ void Gui::DrawArea(Color color, const Int2& pos, const Int2& size, const Box2d* 
 	gui_rect.Set(pos, size);
 	if(!clip_rect || gui_rect.Clip(*clip_rect))
 	{
+		Lock(nullptr, 1);
 		Vec4 col = Color(color);
-
-		FIXME;
-		//tCurrent = tPixel;
-		Lock();
 		gui_rect.Populate(v, col);
-		in_buffer = 1;
-		Flush();
+		++in_buffer;
 	}
 }
 
@@ -2230,26 +1831,22 @@ void Gui::DrawArea(const Box2d& rect, const AreaLayout& area_layout, const Box2d
 		{
 			assert(!clip_rect);
 
-			FIXME;
-			//tCurrent = tPixel;
-			Lock();
+			Lock(nullptr, 1);
 			AddRect(rect.LeftTop(), rect.RightBottom(), Color(area_layout.background_color));
-			in_buffer = 1;
-			Flush();
+			++in_buffer;
 		}
 
 		// image/color
+		TEX tex;
 		GuiRect gui_rect;
 		if(area_layout.mode >= AreaLayout::Mode::Image)
 		{
-			FIXME;
-			//tCurrent = area_layout.tex->tex;
+			tex = area_layout.tex->tex;
 			gui_rect.Set(rect, &area_layout.region);
 		}
 		else
 		{
-			FIXME;
-			//tCurrent = tPixel;
+			tex = nullptr;
 			gui_rect.Set(rect, nullptr);
 		}
 		if(clip_rect)
@@ -2258,21 +1855,18 @@ void Gui::DrawArea(const Box2d& rect, const AreaLayout& area_layout, const Box2d
 				return;
 		}
 
-		Lock();
+		Lock(tex, 1);
 		Vec4 col = color;
 		gui_rect.Populate(v, col);
-		in_buffer = 1;
-		Flush();
+		++in_buffer;
 
 		if(area_layout.mode != AreaLayout::Mode::BorderColor)
 			return;
 
 		// border
 		assert(!clip_rect);
-		FIXME;
-		//tCurrent = tPixel;
 		col = area_layout.border_color;
-		Lock();
+		Lock(nullptr, 1);
 
 		float s = (float)area_layout.width;
 		AddRect(rect.LeftTop(), rect.RightTop() + Vec2(-s, s), col);
@@ -2280,8 +1874,7 @@ void Gui::DrawArea(const Box2d& rect, const AreaLayout& area_layout, const Box2d
 		AddRect(rect.RightTop() + Vec2(-s, 0), rect.RightBottom(), col);
 		AddRect(rect.LeftBottom() + Vec2(0, -s), rect.RightBottom(), col);
 
-		in_buffer = 4;
-		Flush();
+		in_buffer += 4;
 	}
 }
 
@@ -2453,7 +2046,7 @@ bool Gui::DrawText2(DrawTextOptions& options)
 				else
 				{
 					// pomiñ hitbox
-					SkipLine(options.str, line_begin, line_end, hc);
+					SkipTextLine(options.str, line_begin, line_end, hc);
 				}
 
 				// zmieñ y na kolejn¹ linijkê
@@ -2495,7 +2088,7 @@ bool Gui::DrawText2(DrawTextOptions& options)
 				else
 				{
 					// pomiñ hitbox
-					SkipLine(options.str, line.begin, line.end, hc);
+					SkipTextLine(options.str, line.begin, line.end, hc);
 				}
 
 				// zmieñ y na kolejn¹ linijkê
@@ -2558,7 +2151,7 @@ bool Gui::DrawText2(DrawTextOptions& options)
 			else if(options.hitboxes)
 			{
 				// pomiñ hitbox
-				SkipLine(options.str, line.begin, line.end, hc);
+				SkipTextLine(options.str, line.begin, line.end, hc);
 			}
 
 			// zmieñ y na kolejn¹ linijkê

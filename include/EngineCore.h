@@ -19,6 +19,7 @@ class Engine;
 class FontLoader;
 class GrassShader;
 class Gui;
+class GuiShader;
 class Input;
 class Render;
 class RenderTarget;
@@ -74,8 +75,11 @@ struct HWND__;
 typedef HWND__* HWND;
 
 // DirectX types
+struct D3D11_INPUT_ELEMENT_DESC;
 struct ID3D10Blob;
+struct ID3D11BlendState;
 struct ID3D11Buffer;
+struct ID3D11DepthStencilState;
 struct ID3D11DepthStencilView;
 struct ID3D11Device;
 struct ID3D11DeviceContext;
@@ -90,6 +94,7 @@ struct IDXGIAdapter;
 struct IDXGIFactory;
 struct IDXGISwapChain;
 typedef ID3D10Blob ID3DBlob;
+typedef ID3D11ShaderResourceView* TEX;
 
 // FMod types
 namespace FMOD

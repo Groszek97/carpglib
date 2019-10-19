@@ -624,12 +624,12 @@ void ResourceManager::LoadTexture(Texture* tex)
 {
 	HRESULT hr;
 	if(tex->IsFile())
-		hr = CreateWICTextureFromFile(app::render->GetDevice(), app::render->GetDeviceContext(), ToWString(tex->path.c_str()), nullptr, &tex->view);
+		hr = CreateWICTextureFromFile(app::render->GetDevice(), app::render->GetDeviceContext(), ToWString(tex->path.c_str()), nullptr, &tex->tex);
 	else
 	{
 		BufferHandle&& buf = tex->GetBuffer();
 		hr = CreateWICTextureFromMemory(app::render->GetDevice(), app::render->GetDeviceContext(),
-			static_cast<byte*>(buf->Data()), buf->Size(), nullptr, &tex->view);
+			static_cast<byte*>(buf->Data()), buf->Size(), nullptr, &tex->tex);
 	}
 
 	if(FAILED(hr))

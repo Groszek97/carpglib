@@ -8,41 +8,32 @@
 #include "App.h"
 #include "DirectX.h"
 #include <d3dcompiler.h>
-//
-#include "ResourceManager.h"
-#include "Mesh.h"
 
 Render* app::render;
 const DXGI_FORMAT DISPLAY_FORMAT = DXGI_FORMAT_R8G8B8A8_UNORM;
 
 //=================================================================================================
 Render::Render() : initialized(false), factory(nullptr), adapter(nullptr), swap_chain(nullptr), device(nullptr), device_context(nullptr),
-render_target(nullptr), depth_stencil_view(nullptr), vsync(true), shaders_dir("shaders"), multisampling(0), multisampling_quality(0)
+render_target(nullptr), depth_stencil_view(nullptr), vsync(true), shaders_dir("shaders"), multisampling(0), multisampling_quality(0), blend_state(),
+depth_state()
 {
-	//for(int i = 0; i < VDI_MAX; ++i)
-	//	vertex_decl[i] = nullptr;
 }
 
 //=================================================================================================
 Render::~Render()
 {
-	/*for(ShaderHandler* shader : shaders)
-	{
-		if(!shader->IsManual())
-		{
-			shader->OnRelease();
-			delete shader;
-		}
-	}
+	/*
 	for(RenderTarget* target : targets)
 	{
 		SafeRelease(target->surf);
 		delete target;
 	}
-	for(int i = 0; i < VDI_MAX; ++i)
-		SafeRelease(vertex_decl[i]);
 	*/
 
+	for(int i = 0; i < 2; ++i)
+		SafeRelease(blend_state[i]);
+	for(int i = 0; i < DEPTH_MAX; ++i)
+		SafeRelease(depth_state[i]);
 	SafeRelease(depth_stencil_view);
 	SafeRelease(render_target);
 	SafeRelease(swap_chain);
@@ -212,6 +203,8 @@ void Render::Init()
 	CreateAdapter();
 	CreateDeviceAndSwapChain();
 	CreateSizeDependentResources();
+	CreateBlendStates();
+	CreateDepthStates();
 	device_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
 
@@ -345,6 +338,66 @@ void Render::SetViewport()
 	device_context->RSSetViewports(1, &viewport);
 }
 
+void Render::CreateBlendStates()
+{
+	// get disabled blend state
+	device_context->OMGetBlendState(&blend_state[0], nullptr, nullptr);
+
+	// create enabled blend state
+	D3D11_BLEND_DESC b_desc = { 0 };
+	b_desc.RenderTarget[0].BlendEnable = true;
+	b_desc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+	b_desc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+	b_desc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+	b_desc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+	b_desc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
+	b_desc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+	b_desc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+
+	HRESULT result = device->CreateBlendState(&b_desc, &blend_state[1]);
+	if(FAILED(result))
+		throw Format("Failed to create blend state (%u).", result);
+
+	alphablend = false;
+}
+
+void Render::CreateDepthStates()
+{
+	// create depth stencil state
+	D3D11_DEPTH_STENCIL_DESC desc = {};
+	desc.DepthEnable = true;
+	desc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+	desc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
+
+	desc.StencilEnable = false;
+	desc.StencilReadMask = D3D11_DEFAULT_STENCIL_READ_MASK;
+	desc.StencilWriteMask = D3D11_DEFAULT_STENCIL_WRITE_MASK;
+
+	desc.FrontFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+	desc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
+	desc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+	desc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_KEEP;
+
+	desc.BackFace = desc.FrontFace;
+
+	V(device->CreateDepthStencilState(&desc, &depth_state[DEPTH_YES]));
+	device_context->OMSetDepthStencilState(depth_state[DEPTH_YES], 1);
+	current_depth_state = DEPTH_YES;
+
+	//==================================================================
+	// create depth stencil state with disabled depth test
+	desc.DepthEnable = false;
+	desc.DepthFunc = D3D11_COMPARISON_ALWAYS;
+	V(device->CreateDepthStencilState(&desc, &depth_state[DEPTH_NO]));
+
+	//==================================================================
+	// create readonly depth stencil state
+	desc.DepthEnable = true;
+	desc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
+	desc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+	V(device->CreateDepthStencilState(&desc, &depth_state[DEPTH_READONLY]));
+}
+
 //=================================================================================================
 void Render::LogMultisampling()
 {
@@ -462,101 +515,6 @@ void Render::LogAndSelectResolution()
 			Info("Render: Defaulting refresh rate to %d Hz.", best_valid_hz);
 		refresh_hz = best_valid_hz;
 	}*/
-}
-
-//=================================================================================================
-void Render::SetDefaultRenderState()
-{
-	/*V(device->SetRenderState(D3DRS_BLENDOP, D3DBLENDOP_ADD));
-	V(device->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA));
-	V(device->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA));
-	V(device->SetRenderState(D3DRS_ALPHAREF, 200));
-	V(device->SetRenderState(D3DRS_ALPHAFUNC, D3DCMP_GREATEREQUAL));*/
-
-	r_alphatest = false;
-	r_alphablend = false;
-	r_nocull = false;
-	r_nozwrite = false;
-}
-
-//=================================================================================================
-void Render::CreateVertexDeclarations()
-{
-	/*const D3DVERTEXELEMENT9 Default[] = {
-		{0, 0,  D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_POSITION,		0},
-		{0, 12,	D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_NORMAL,		0},
-		{0, 24, D3DDECLTYPE_FLOAT2,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_TEXCOORD,		0},
-		D3DDECL_END()
-	};
-	V(device->CreateVertexDeclaration(Default, &vertex_decl[VDI_DEFAULT]));
-
-	const D3DVERTEXELEMENT9 Animated[] = {
-		{0,	0,	D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_POSITION,		0},
-		{0,	12,	D3DDECLTYPE_FLOAT1,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_BLENDWEIGHT,	0},
-		{0,	16,	D3DDECLTYPE_UBYTE4,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_BLENDINDICES,	0},
-		{0,	20,	D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_NORMAL,		0},
-		{0,	32,	D3DDECLTYPE_FLOAT2,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_TEXCOORD,		0},
-		D3DDECL_END()
-	};
-	V(device->CreateVertexDeclaration(Animated, &vertex_decl[VDI_ANIMATED]));
-
-	const D3DVERTEXELEMENT9 Tangents[] = {
-		{0, 0,  D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_POSITION,		0},
-		{0, 12,	D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_NORMAL,		0},
-		{0, 24, D3DDECLTYPE_FLOAT2,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_TEXCOORD,		0},
-		{0,	32,	D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_TANGENT,		0},
-		{0,	44,	D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_BINORMAL,		0},
-		D3DDECL_END()
-	};
-	V(device->CreateVertexDeclaration(Tangents, &vertex_decl[VDI_TANGENT]));
-
-	const D3DVERTEXELEMENT9 AnimatedTangents[] = {
-		{0,	0,	D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_POSITION,		0},
-		{0,	12,	D3DDECLTYPE_FLOAT1,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_BLENDWEIGHT,	0},
-		{0,	16,	D3DDECLTYPE_UBYTE4,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_BLENDINDICES,	0},
-		{0,	20,	D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_NORMAL,		0},
-		{0,	32,	D3DDECLTYPE_FLOAT2,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_TEXCOORD,		0},
-		{0,	40,	D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_TANGENT,		0},
-		{0,	52,	D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_BINORMAL,		0},
-		D3DDECL_END()
-	};
-	V(device->CreateVertexDeclaration(AnimatedTangents, &vertex_decl[VDI_ANIMATED_TANGENT]));
-
-	const D3DVERTEXELEMENT9 Tex[] = {
-		{0, 0,  D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_POSITION,		0},
-		{0, 12, D3DDECLTYPE_FLOAT2,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_TEXCOORD,		0},
-		D3DDECL_END()
-	};
-	V(device->CreateVertexDeclaration(Tex, &vertex_decl[VDI_TEX]));
-
-	const D3DVERTEXELEMENT9 Color[] = {
-		{0, 0,  D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_POSITION,		0},
-		{0, 12, D3DDECLTYPE_FLOAT4,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_COLOR,			0},
-		D3DDECL_END()
-	};
-	V(device->CreateVertexDeclaration(Color, &vertex_decl[VDI_COLOR]));
-
-	const D3DVERTEXELEMENT9 Particle[] = {
-		{0, 0,  D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_POSITION,		0},
-		{0, 12, D3DDECLTYPE_FLOAT2,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_TEXCOORD,		0},
-		{0, 20, D3DDECLTYPE_FLOAT4,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_COLOR,			0},
-		D3DDECL_END()
-	};
-	V(device->CreateVertexDeclaration(Particle, &vertex_decl[VDI_PARTICLE]));
-
-	const D3DVERTEXELEMENT9 Pos[] = {
-		{0,	0,	D3DDECLTYPE_FLOAT3,	D3DDECLMETHOD_DEFAULT,	D3DDECLUSAGE_POSITION,		0},
-		D3DDECL_END()
-	};
-	V(device->CreateVertexDeclaration(Pos, &vertex_decl[VDI_POS]));*/
-}
-
-//=================================================================================================
-void Render::RegisterShader(ShaderHandler* shader)
-{
-	assert(shader);
-	shaders.push_back(shader);
-	shader->OnInit();
 }
 
 //=================================================================================================
@@ -726,15 +684,57 @@ ID3DXEffect* Render::CompileShader(CompileShaderParams& params)
 	SafeRelease(compiler);
 
 	return effect;
-}
+}*/
 
 //=================================================================================================
-TEX Render::CreateTexture(const Int2& size)
+TEX Render::CreateTexture(const Int2& size, Color* fill)
 {
-	TEX tex;
-	V(device->CreateTexture(size.x, size.y, 0, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &tex, nullptr));
-	return tex;
-}*/
+	D3D11_TEXTURE2D_DESC desc = {};
+	desc.Width = size.x;
+	desc.Height = size.y;
+	desc.MipLevels = 1;
+	desc.ArraySize = 1;
+	desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	desc.SampleDesc.Count = 1;
+	desc.Usage = D3D11_USAGE_DYNAMIC;
+	desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+	desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+	ID3D11Texture2D* tex;
+	if(fill)
+	{
+		D3D11_SUBRESOURCE_DATA initData = {};
+		vector<byte>* buf = nullptr;
+		if(size.x == 1 && size.y == 1)
+			initData.pSysMem = fill;
+		else
+		{
+			buf = BufPool.Get();
+			buf->resize(sizeof(Color) * size.x * size.y);
+			Color* c = (Color*)buf->data();
+			for(int i = 0; i < size.x * size.y; ++i)
+				*c++ = *fill;
+			initData.pSysMem = buf->data();
+		}
+		initData.SysMemPitch = sizeof(Color);
+		V(device->CreateTexture2D(&desc, &initData, &tex));
+		if(buf)
+			BufPool.Free(buf);
+	}
+	else
+		V(device->CreateTexture2D(&desc, nullptr, &tex));
+
+	D3D11_SHADER_RESOURCE_VIEW_DESC v_desc = {};
+	v_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	v_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+	v_desc.Texture2D.MipLevels = 1;
+
+	ID3D11ShaderResourceView* view;
+	V(device->CreateShaderResourceView(tex, &v_desc, &view));
+	tex->Release();
+
+	return view;
+}
 
 //=================================================================================================
 //RenderTarget* Render::CreateRenderTarget(const Int2& size)
@@ -790,10 +790,10 @@ void Render::CreateRenderTargetTexture(RenderTarget* target)
 //=================================================================================================
 void Render::SetAlphaBlend(bool use_alphablend)
 {
-	if(use_alphablend != r_alphablend)
+	if(use_alphablend != alphablend)
 	{
-		r_alphablend = use_alphablend;
-		//V(device->SetRenderState(D3DRS_ALPHABLENDENABLE, r_alphablend ? TRUE : FALSE));
+		alphablend = use_alphablend;
+		device_context->OMSetBlendState(blend_state[alphablend ? 1 : 0], nullptr, 0xFFFFFFFF);
 	}
 }
 
@@ -818,13 +818,13 @@ void Render::SetNoCulling(bool use_nocull)
 }
 
 //=================================================================================================
-void Render::SetNoZWrite(bool use_nozwrite)
+void Render::SetDepthState(DepthState state)
 {
-	if(use_nozwrite != r_nozwrite)
-	{
-		r_nozwrite = use_nozwrite;
-		//V(device->SetRenderState(D3DRS_ZWRITEENABLE, r_nozwrite ? FALSE : TRUE));
-	}
+	assert(state >= 0 && state < DEPTH_MAX);
+	if(state == current_depth_state)
+		return;
+	current_depth_state = state;
+	device_context->OMSetDepthStencilState(depth_state[state], 0);
 }
 
 //=================================================================================================
@@ -942,11 +942,29 @@ void Render::SetTarget(RenderTarget* target)
 	//}
 }
 
-//=================================================================================================
-void Render::SetTextureAddressMode(TextureAddressMode mode)
+void Render::CreateShader(cstring filename, D3D11_INPUT_ELEMENT_DESC* input, uint input_count, ID3D11VertexShader*& vertex_shader,
+	ID3D11PixelShader*& pixel_shader, ID3D11InputLayout*& layout)
 {
-	/*V(device->SetSamplerState(0, D3DSAMP_ADDRESSU, (D3DTEXTUREADDRESS)mode));
-	V(device->SetSamplerState(0, D3DSAMP_ADDRESSV, (D3DTEXTUREADDRESS)mode));*/
+	try
+	{
+		CPtr<ID3DBlob> vs_buf = CompileShader(filename, "vs_entry", true);
+		HRESULT result = device->CreateVertexShader(vs_buf->GetBufferPointer(), vs_buf->GetBufferSize(), nullptr, &vertex_shader);
+		if(FAILED(result))
+			throw Format("Failed to create vertex shader (%u).", result);
+
+		CPtr<ID3DBlob> ps_buf = CompileShader(filename, "ps_entry", false);
+		result = device->CreatePixelShader(ps_buf->GetBufferPointer(), ps_buf->GetBufferSize(), nullptr, &pixel_shader);
+		if(FAILED(result))
+			throw Format("Failed to create pixel shader (%u).", result);
+
+		result = device->CreateInputLayout(input, input_count, vs_buf->GetBufferPointer(), vs_buf->GetBufferSize(), &layout);
+		if(FAILED(result))
+			throw Format("Failed to create input layout (%u).", result);
+	}
+	catch(cstring err)
+	{
+		throw Format("Failed to create shader '%s': %s", filename, err);
+	}
 }
 
 ID3DBlob* Render::CompileShader(cstring filename, cstring entry, bool is_vertex)
@@ -991,6 +1009,9 @@ ID3DBlob* Render::CompileShader(cstring filename, cstring entry, bool is_vertex)
 
 ID3D11Buffer* Render::CreateConstantBuffer(uint size)
 {
+	if(size % 16 != 0)
+		size = (size / 16 + 1) * 16;
+
 	D3D11_BUFFER_DESC cb_desc;
 	cb_desc.Usage = D3D11_USAGE_DYNAMIC;
 	cb_desc.ByteWidth = size;
@@ -1005,6 +1026,31 @@ ID3D11Buffer* Render::CreateConstantBuffer(uint size)
 		throw Format("Failed to create constant buffer (size:%u; code:%u).", size, result);
 
 	return buffer;
+}
+
+ID3D11SamplerState* Render::CreateSampler(TextureAddressMode mode)
+{
+	D3D11_SAMPLER_DESC sampler_desc;
+	sampler_desc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+	sampler_desc.AddressU = (D3D11_TEXTURE_ADDRESS_MODE)mode;
+	sampler_desc.AddressV = (D3D11_TEXTURE_ADDRESS_MODE)mode;
+	sampler_desc.AddressW = (D3D11_TEXTURE_ADDRESS_MODE)mode;
+	sampler_desc.MipLODBias = 0.0f;
+	sampler_desc.MaxAnisotropy = 1;
+	sampler_desc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
+	sampler_desc.BorderColor[0] = 0;
+	sampler_desc.BorderColor[1] = 0;
+	sampler_desc.BorderColor[2] = 0;
+	sampler_desc.BorderColor[3] = 0;
+	sampler_desc.MinLOD = 0;
+	sampler_desc.MaxLOD = D3D11_FLOAT32_MAX;
+
+	ID3D11SamplerState* sampler;
+	HRESULT result = device->CreateSamplerState(&sampler_desc, &sampler);
+	if(FAILED(result))
+		throw Format("Failed to create sampler state (%u).", result);
+
+	return sampler;
 }
 
 void Render::OnChangeResolution()

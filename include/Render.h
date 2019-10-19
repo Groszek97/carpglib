@@ -1,11 +1,6 @@
 #pragma once
 
 //-----------------------------------------------------------------------------
-#include "VertexDeclaration.h"
-//---------------
-#include "Timer.h"
-
-//-----------------------------------------------------------------------------
 enum TextureAddressMode
 {
 	TEX_ADR_WRAP = 1,
@@ -23,29 +18,36 @@ struct Resolution
 };
 
 //-----------------------------------------------------------------------------
-struct CompileShaderParams
-{
-	cstring name;
-	cstring cache_name;
-	string* input;
-	FileTime file_time;
-	//D3DXMACRO* macros;
-	//ID3DXEffectPool* pool;
-	FIXME;
-};
+//struct CompileShaderParams
+//{
+//	cstring name;
+//	cstring cache_name;
+//	string* input;
+//	FileTime file_time;
+//	//D3DXMACRO* macros;
+//	//ID3DXEffectPool* pool;
+//};
+FIXME;
 
 //-----------------------------------------------------------------------------
 class Render
 {
 	friend class SceneManager;
 public:
+	enum DepthState
+	{
+		DEPTH_YES,
+		DEPTH_READONLY,
+		DEPTH_NO,
+		DEPTH_MAX
+	};
+
 	Render();
 	~Render();
 	void Init();
-	void RegisterShader(ShaderHandler* shader);
 	//ID3DXEffect* CompileShader(cstring name);
 	//ID3DXEffect* CompileShader(CompileShaderParams& params);
-	//TEX CreateTexture(const Int2& size);
+	TEX CreateTexture(const Int2& size, Color* fill);
 	//RenderTarget* CreateRenderTarget(const Int2& size);
 	//Texture* CopyToTexture(RenderTarget* target);
 
@@ -57,21 +59,24 @@ public:
 	void GetMultisampling(int& ms, int& msq) const { ms = multisampling; msq = multisampling_quality; }
 	void GetResolutions(vector<Resolution>& v) const;
 	void GetMultisamplingModes(vector<Int2>& v) const;
-	vector<ShaderHandler*>& GetShaders() { return shaders; }
 	const string& GetShadersDir() const { return shaders_dir; }
 	//IDirect3DVertexDeclaration9* GetVertexDeclaration(VertexDeclarationId id) { return vertex_decl[id]; }
 
 	void SetAlphaBlend(bool use_alphablend);
 	void SetAlphaTest(bool use_alphatest);
 	void SetNoCulling(bool use_nocull);
-	void SetNoZWrite(bool use_nozwrite);
+	void SetDepthState(DepthState depth_state);
 	void SetVsync(bool vsync) { this->vsync = vsync; }
 	int SetMultisampling(int type, int quality);
 	void SetTarget(RenderTarget* target);
-	void SetTextureAddressMode(TextureAddressMode mode);
 	void SetShadersDir(cstring dir) { shaders_dir = dir; }
 
 	void OnChangeResolution();
+	void CreateShader(cstring filename, D3D11_INPUT_ELEMENT_DESC* input, uint input_count, ID3D11VertexShader*& vertex_shader,
+		ID3D11PixelShader*& pixel_shader, ID3D11InputLayout*& layout);
+	ID3DBlob* CompileShader(cstring filename, cstring entry, bool is_vertex);
+	ID3D11Buffer* CreateConstantBuffer(uint size);
+	ID3D11SamplerState* CreateSampler(TextureAddressMode mode = TEX_ADR_WRAP);
 
 private:
 	void CreateAdapter();
@@ -80,14 +85,12 @@ private:
 	void CreateRenderTarget();
 	void CreateDepthStencilView();
 	void SetViewport();
-	ID3DBlob* CompileShader(cstring filename, cstring entry, bool is_vertex);
-	ID3D11Buffer* CreateConstantBuffer(uint size);
+	void CreateBlendStates();
+	void CreateDepthStates();
 
 	//
 	void LogMultisampling();
 	void LogAndSelectResolution();
-	void SetDefaultRenderState();
-	void CreateVertexDeclarations();
 	void CreateRenderTargetTexture(RenderTarget* target);
 
 	IDXGIFactory* factory;
@@ -99,19 +102,18 @@ private:
 	ID3D11DepthStencilView* depth_stencil_view;
 
 
-	/*ID3D11DepthStencilState* depth_state[DEPTH_MAX];
-	ID3D11RasterizerState* raster_state[RASTER_MAX];
-	ID3D11BlendState* blend_state[BLEND_MAX];*/
+	//ID3D11RasterizerState* raster_state[RASTER_MAX];
+	ID3D11BlendState* blend_state[2];
+	ID3D11DepthStencilState* depth_state[DEPTH_MAX];
+	DepthState current_depth_state;
 
 
-	vector<ShaderHandler*> shaders;
 	vector<RenderTarget*> targets;
-	//IDirect3DVertexDeclaration9* vertex_decl[VDI_MAX];
 	//RenderTarget* current_target;
 	//SURFACE current_surf;
 	string shaders_dir;
 	Int2 wnd_size;
 	int multisampling, multisampling_quality;
-	bool initialized, vsync, r_alphatest, r_nozwrite, r_nocull, r_alphablend;
+	bool initialized, vsync, r_alphatest, r_nocull, alphablend;
 };
 FIXME;

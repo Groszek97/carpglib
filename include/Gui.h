@@ -1,7 +1,6 @@
 #pragma once
 
 //-----------------------------------------------------------------------------
-#include "ShaderHandler.h"
 #include "Font.h"
 #include "VertexDeclaration.h"
 
@@ -118,19 +117,14 @@ namespace layout
 
 //-----------------------------------------------------------------------------
 // GUI
-class Gui : public ShaderHandler
+class Gui
 {
 public:
 	Gui();
 	~Gui();
 	void Init();
-	void OnInit() override;
-	void OnReset() override;
-	void OnReload() override;
-	void OnRelease() override;
-	bool IsManual() override { return true; }
 	void SetText(cstring ok, cstring yes, cstring no, cstring cancel);
-	void Draw(bool draw_layers, bool draw_dialogs);
+	void Draw();
 	bool AddFont(cstring filename);
 	Font* GetFont(cstring name, int size, int weight);
 	/* zaawansowane renderowanie tekstu (w porównaniu do ID3DXFont)
@@ -149,7 +143,6 @@ public:
 	void DrawItem(Texture* t, const Int2& item_pos, const Int2& item_size, Color color, int corner = 16, int size = 64, const Box2d* clip_rect = nullptr);
 	void Update(float dt, float mouse_speed);
 	void DrawSprite(Texture* t, const Int2& pos, Color color = Color::White, const Rect* clipping = nullptr);
-	void OnClean();
 	void OnChar(char c);
 	DialogBox* ShowDialog(const DialogInfo& info);
 	void ShowDialog(DialogBox* dialog);
@@ -164,8 +157,6 @@ public:
 	void DrawSpriteRect(Texture* t, const Rect& rect, Color color = Color::White);
 	bool HaveDialog(cstring name);
 	bool HaveDialog(DialogBox* dialog);
-	//IDirect3DDevice9* GetDevice() { return device; }
-	FIXME; // po co to tu
 	bool AnythingVisible() const;
 	void OnResize();
 	void DrawSpriteRectPart(Texture* t, const Rect& rect, const Rect& part, Color color = Color::White);
@@ -229,37 +220,29 @@ public:
 	float mouse_wheel;
 
 private:
-	void CreateVertexBuffer();
-	void DrawLine(Font* font, cstring text, uint line_begin, uint line_end, const Vec4& def_color, Vec4& color, int x, int y, const Rect* clipping,
-		HitboxContext* hc, bool parse_special, const Vec2& scale);
-	void DrawLineOutline(Font* font, cstring text, uint line_begin, uint line_end, const Vec4& def_color, Vec4& color, int x, int y, const Rect* clipping,
+	static constexpr uint MAX_QUADS = 256;
+
+	void DrawTextLine(Font* font, cstring text, uint line_begin, uint line_end, const Vec4& def_color, Vec4& color, int x, int y, const Rect* clipping,
 		HitboxContext* hc, bool parse_special, const Vec2& scale);
 	int Clip(int x, int y, int w, int h, const Rect* clipping);
-	void Lock(bool outline = false);
-	void Flush(bool lock = false);
-	void SkipLine(cstring text, uint line_begin, uint line_end, HitboxContext* hc);
+	void Lock(TEX tex, uint count);
+	void Flush();
+	void SkipTextLine(cstring text, uint line_begin, uint line_end, HitboxContext* hc);
 	void AddRect(const Vec2& left_top, const Vec2& right_bottom, const Vec4& color);
 
+	GuiShader* shader;
 	FontLoader* font_loader;
-	/*IDirect3DDevice9* device;
-	ID3DXSprite* sprite;
-	TEX tSet, tCurrent, tCurrent2, tPixel;*/
-	int max_tex_size;
+	TEX current_tex;
 	vector<DialogBox*> created_dialogs;
-	/*ID3DXEffect* effect;
-	D3DXHANDLE techGui, techGui2, techGuiGrayscale;
-	D3DXHANDLE hGuiSize, hGuiTex;*/
 	Container* layer, *dialog_layer;
-	VParticle* v, *v2;
-	uint in_buffer, in_buffer2;
-	Vec4 color_table[6];
-	//VB vb, vb2;
+	VParticle verts[6 * MAX_QUADS];
+	VParticle* v;
+	uint in_buffer;
 	HitboxContext tmpHitboxContext;
 	vector<OnCharHandler*> on_char;
-	bool vb2_locked, grayscale;
+	bool grayscale;
 	float outline_alpha;
 	Layout* master_layout;
 	layout::Gui* layout;
 	Overlay* overlay;
-	//IDirect3DVertexDeclaration9* vertex_decl;
 };

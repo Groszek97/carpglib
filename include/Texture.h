@@ -8,9 +8,9 @@ struct Texture : public Resource
 {
 	static constexpr ResourceType Type = ResourceType::Texture;
 
-	ID3D11ShaderResourceView* view;
+	TEX tex;
 
-	Texture() : view(nullptr) {}
+	Texture() : tex(nullptr) {}
 	~Texture();
 	void ResizeImage(Int2& new_size, Int2& img_size, Vec2& scale);
 	Int2 GetSize() const;

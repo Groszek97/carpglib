@@ -628,15 +628,6 @@ void Engine::WindowLoop()
 }
 
 //=================================================================================================
-void Engine::SetWindowSizeInternal(const Int2& size)
-{
-	wnd_size = size;
-	AdjustWindowSize();
-	SetWindowPos(hwnd, HWND_NOTOPMOST, (GetSystemMetrics(SM_CXSCREEN) - real_size.x) / 2, (GetSystemMetrics(SM_CYSCREEN) - real_size.y) / 2,
-		real_size.x, real_size.y, SWP_SHOWWINDOW | SWP_DRAWFRAME);
-}
-
-//=================================================================================================
 void Engine::SetFullscreen(bool fullscreen)
 {
 	if(this->fullscreen == fullscreen)

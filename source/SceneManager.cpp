@@ -6,6 +6,7 @@
 #include "Camera.h"
 #include "Mesh.h"
 #include "Render.h"
+#include "Gui.h"
 #include "DirectX.h"
 
 SceneManager* app::scene_mgr;
@@ -28,6 +29,8 @@ SceneManager::~SceneManager()
 
 void SceneManager::Init()
 {
+	device_context = app::render->device_context;
+
 	ID3DBlob* vs_buf = app::render->CompileShader("test.hlsl", "vs_main", true);
 	HRESULT result = app::render->device->CreateVertexShader(vs_buf->GetBufferPointer(), vs_buf->GetBufferSize(), nullptr, &vertex_shader);
 	//if(FAILED(result))
@@ -54,39 +57,27 @@ void SceneManager::Init()
 	ps_buf->Release();
 
 	// create texture sampler
-	D3D11_SAMPLER_DESC sampler_desc;
-	sampler_desc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-	sampler_desc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-	sampler_desc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-	sampler_desc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-	sampler_desc.MipLODBias = 0.0f;
-	sampler_desc.MaxAnisotropy = 1;
-	sampler_desc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
-	sampler_desc.BorderColor[0] = 0;
-	sampler_desc.BorderColor[1] = 0;
-	sampler_desc.BorderColor[2] = 0;
-	sampler_desc.BorderColor[3] = 0;
-	sampler_desc.MinLOD = 0;
-	sampler_desc.MaxLOD = D3D11_FLOAT32_MAX;
-
-	result = app::render->device->CreateSamplerState(&sampler_desc, &sampler);
-	if(FAILED(result))
-		throw Format("Failed to create sampler state (%u).", result);
+	sampler = app::render->CreateSampler();
 }
 
 void SceneManager::Draw()
 {
-	ID3D11DeviceContext* device_context = app::render->device_context;
-
 	Vec4 color = scene ? scene->clear_color : Color::Black;
 	device_context->ClearRenderTargetView(app::render->render_target, (float*)color);
 	device_context->ClearDepthStencilView(app::render->depth_stencil_view, D3D11_CLEAR_DEPTH, 1.f, 0);
 
-	if(!scene || !camera)
-	{
-		V(app::render->swap_chain->Present(app::render->vsync ? 1 : 0, 0));
-		return;
-	}
+	if(scene && camera)
+		DrawScene();
+
+	app::gui->Draw();
+
+	V(app::render->swap_chain->Present(app::render->vsync ? 1 : 0, 0));
+}
+
+void SceneManager::DrawScene()
+{
+	app::render->SetAlphaBlend(false);
+	app::render->SetDepthState(Render::DEPTH_YES);
 
 	device_context->IASetInputLayout(layout);
 	device_context->VSSetShader(vertex_shader, nullptr, 0);
@@ -118,10 +109,8 @@ void SceneManager::Draw()
 
 		for(Mesh::Submesh& sub : mesh->subs)
 		{
-			device_context->PSSetShaderResources(0, 1, &sub.tex->view);
+			device_context->PSSetShaderResources(0, 1, &sub.tex->tex);
 			device_context->DrawIndexed(sub.tris * 3, sub.first * 3, sub.min_ind);
 		}
 	}
-
-	V(app::render->swap_chain->Present(app::render->vsync ? 1 : 0, 0));
 }

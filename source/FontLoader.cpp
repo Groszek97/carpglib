@@ -117,7 +117,7 @@ Font* FontLoader::Load(cstring name, int size, int weight)
 	SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 	SRVDesc.Texture2D.MipLevels = 1;
 
-	V(device->CreateShaderResourceView(tex, &SRVDesc, &font->view));
+	V(device->CreateShaderResourceView(tex, &SRVDesc, &font->tex));
 	tex->Release();
 
 	// make tab size of 4 spaces

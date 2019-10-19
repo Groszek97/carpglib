@@ -41,7 +41,6 @@ public:
 private:
 	void Init();
 	void AdjustWindowSize();
-	void ChangeMode();
 	void Cleanup();
 	void DoTick(bool update_game);
 	long HandleEvent(HWND hwnd, uint msg, uint wParam, long lParam);
@@ -52,7 +51,6 @@ private:
 	void UpdateActivity(bool is_active);
 	void WindowLoop();
 	bool IsWindowActive();
-	void SetWindowSizeInternal(const Int2& size);
 
 	CustomCollisionWorld* phy_world;
 	HWND hwnd;
