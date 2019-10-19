@@ -37,7 +37,7 @@ void vs_entry(in VERTEX_INPUT In, out VERTEX_OUTPUT Out)
 float4 ps_entry(in VERTEX_OUTPUT In) : SV_TARGET
 {
 	float4 c = texture0.Sample(sampler0, In.tex) * In.color;
-	//if(grayscale)
-	//	c.rgb = (c.r+c.g+c.b)/3.0f;
+	if(grayscale)
+		c.rgb = (c.r+c.g+c.b)/3.0f;
 	return c;
 }

@@ -14,12 +14,43 @@ FontLoader::FontLoader() : device(app::render->GetDevice()), gdi_initialized(fal
 }
 
 //=================================================================================================
-Font* FontLoader::Load(cstring name, int size, int weight)
+Font* FontLoader::Load(cstring name, int size, int weight, int outline)
 {
-	assert(name && size > 0 && InRange(weight, 1, 9));
+	assert(name && size > 0 && InRange(weight, 1, 9) && outline >= 0);
 
 	InitGdi();
 
+	try
+	{
+		return LoadInternal(name, size, weight, outline);
+	}
+	catch(cstring err)
+	{
+		throw Format("Failed to load font '%s'(%d): %s", name, size, err);
+	}
+}
+
+//=================================================================================================
+void FontLoader::InitGdi()
+{
+	if(gdi_initialized)
+		return;
+
+	Gdiplus::GdiplusStartupInput gdiplusStartupInput;
+	gdiplusStartupInput.GdiplusVersion = 1;
+	gdiplusStartupInput.DebugEventCallback = nullptr;
+	gdiplusStartupInput.SuppressBackgroundThread = TRUE;
+	gdiplusStartupInput.SuppressExternalCodecs = TRUE;
+	ULONG_PTR gdiplusToken = 0;
+	Gdiplus::GdiplusStartupOutput output;
+
+	Gdiplus::GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, &output);
+	gdi_initialized = true;
+}
+
+//=================================================================================================
+Font* FontLoader::LoadInternal(cstring name, int size, int weight, int outline)
+{
 	HDC hdc = GetDC(nullptr);
 	int logic_size = -MulDiv(size, 96, 72);
 
@@ -30,7 +61,7 @@ Font* FontLoader::Load(cstring name, int size, int weight)
 	{
 		DWORD error = GetLastError();
 		ReleaseDC(nullptr, hdc);
-		throw Format("Failed to create font '%s' (%u).", name, error);
+		throw Format("Failed to create winapi font (%u).", error);
 	}
 
 	// get glyphs weights, font height
@@ -44,7 +75,7 @@ Font* FontLoader::Load(cstring name, int size, int weight)
 			DWORD error = GetLastError();
 			DeleteObject(winapi_font);
 			ReleaseDC(nullptr, hdc);
-			throw Format("Failed to get font '%s' glyphs (%u).", name, error);
+			throw Format("Failed to get font glyphs (%u).", error);
 		}
 		for(int i = 0; i <= 255; ++i)
 		{
@@ -59,6 +90,7 @@ Font* FontLoader::Load(cstring name, int size, int weight)
 	ReleaseDC(nullptr, hdc);
 
 	// calculate texture size
+	const int padding = outline + 1;
 	Int2 tex_size(padding * 2, padding * 2 + font->height);
 	for(int i = 32; i <= 255; ++i)
 	{
@@ -85,7 +117,26 @@ Font* FontLoader::Load(cstring name, int size, int weight)
 		}
 	}
 
-	// create texture
+	// create textures
+	font->outline = outline;
+	font->tex = CreateFontTexture(font, tex_size, 0, padding, winapi_font);
+	if(outline > 0)
+		font->tex_outline = CreateFontTexture(font, tex_size, outline, padding, winapi_font);
+	DeleteObject(winapi_font);
+
+	// make tab size of 4 spaces
+	Font::Glyph& tab = font->glyph['\t'];
+	Font::Glyph& space = font->glyph[' '];
+	tab.width = space.width * 4;;
+	tab.uv = space.uv;
+
+	return font.Pin();
+}
+
+//=================================================================================================
+TEX FontLoader::CreateFontTexture(Font* font, const Int2& tex_size, int outline, int padding, void* winapi_font)
+{
+	// create font
 	D3D11_TEXTURE2D_DESC desc = { 0 };
 	desc.Width = tex_size.x;
 	desc.Height = tex_size.y;
@@ -103,53 +154,10 @@ Font* FontLoader::Load(cstring name, int size, int weight)
 	if(FAILED(result))
 	{
 		DeleteObject(winapi_font);
-		throw Format("Failed to create font texture '%s' (%ux%u, result %u).", name, tex_size.x, tex_size.y, result);
+		throw Format("Failed to create texture (%ux%u, result %u).", tex_size.x, tex_size.y, result);
 	}
 
-	// render font to texture
-	RenderFontToTexture(tex, font, winapi_font);
-	DeleteObject(winapi_font);
-
-	// create texture view
-	D3D11_SHADER_RESOURCE_VIEW_DESC SRVDesc = {};
-	SRVDesc.Format = desc.Format;
-
-	SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-	SRVDesc.Texture2D.MipLevels = 1;
-
-	V(device->CreateShaderResourceView(tex, &SRVDesc, &font->tex));
-	tex->Release();
-
-	// make tab size of 4 spaces
-	Font::Glyph& tab = font->glyph['\t'];
-	Font::Glyph& space = font->glyph[' '];
-	tab.width = space.width * 4;;
-	tab.uv = space.uv;
-
-	return font.Pin();
-}
-
-//=================================================================================================
-void FontLoader::InitGdi()
-{
-	if(gdi_initialized)
-		return;
-
-	Gdiplus::GdiplusStartupInput gdiplusStartupInput;
-	gdiplusStartupInput.GdiplusVersion = 1;
-	gdiplusStartupInput.DebugEventCallback = nullptr;
-	gdiplusStartupInput.SuppressBackgroundThread = TRUE;
-	gdiplusStartupInput.SuppressExternalCodecs = TRUE;
-	ULONG_PTR gdiplusToken = 0;
-	Gdiplus::GdiplusStartupOutput output;
-
-	Gdiplus::GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, &output);
-	gdi_initialized = true;
-}
-
-//=================================================================================================
-void FontLoader::RenderFontToTexture(ID3D11Texture2D* tex, Font* font, void* winapi_font)
-{
+	// render to texture
 	IDXGISurface1* surface;
 	V(tex->QueryInterface(__uuidof(IDXGISurface1), (void**)&surface));
 	HDC hdc;
@@ -175,13 +183,40 @@ void FontLoader::RenderFontToTexture(ID3D11Texture2D* tex, Font* font, void* win
 		c[0] = (char)i;
 		size_t count;
 		mbstowcs_s(&count, wc, c, 4);
-		point.X = (float)offset.x;
-		point.Y = (float)offset.y;
-		graphics.DrawString(wc, 1, &gdi_font, point, format, &brush);
+
+		if(outline)
+		{
+			for(int j = 0; j < 8; ++j)
+			{
+				const float a = float(j) * PI / 4;
+				point.X = float(offset.x + outline * sin(a));
+				point.Y = float(offset.y + outline * cos(a));
+				graphics.DrawString(wc, 1, &gdi_font, point, format, &brush);
+			}
+		}
+		else
+		{
+			point.X = (float)offset.x;
+			point.Y = (float)offset.y;
+			graphics.DrawString(wc, 1, &gdi_font, point, format, &brush);
+		}
 
 		offset.x += glyph.width + padding;
 	}
 
 	V(surface->ReleaseDC(nullptr));
 	surface->Release();
+
+	// create texture view
+	D3D11_SHADER_RESOURCE_VIEW_DESC SRVDesc = {};
+	SRVDesc.Format = desc.Format;
+
+	SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+	SRVDesc.Texture2D.MipLevels = 1;
+
+	TEX view;
+	V(device->CreateShaderResourceView(tex, &SRVDesc, &view));
+	tex->Release();
+
+	return view;
 }

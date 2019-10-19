@@ -7,7 +7,6 @@
 #include "GuiRect.h"
 #include "Engine.h"
 #include "Profiler.h"
-#include "Render.h"
 #include "Input.h"
 #include "ResourceManager.h"
 #include "GuiShader.h"
@@ -18,7 +17,7 @@ Gui* app::gui;
 
 //=================================================================================================
 Gui::Gui() : cursor_mode(CURSOR_NORMAL), focused_ctrl(nullptr), master_layout(nullptr), layout(nullptr), overlay(nullptr), grayscale(false),
-font_loader(nullptr), shader(nullptr), current_tex(nullptr), in_buffer(0)
+font_loader(nullptr), shader(nullptr), current_tex(nullptr), in_buffer(0), outline_color(Color::Black)
 {
 }
 
@@ -78,16 +77,16 @@ bool Gui::AddFont(cstring filename)
 }
 
 //=================================================================================================
-Font* Gui::GetFont(cstring name, int size, int weight)
+Font* Gui::GetFont(cstring name, int size, int weight, int outline)
 {
-	assert(name && size > 0 && InRange(weight, 1, 9));
+	assert(name && size > 0 && InRange(weight, 1, 9) && outline >= 0);
 
-	string res_name = Format("%s;%d;%d", name, size, weight);
+	string res_name = Format("%s;%d;%d;%d", name, size, weight, outline);
 	Font* existing_font = app::res_mgr->TryGet<Font>(res_name);
 	if(existing_font)
 		return existing_font;
 
-	Font* font = font_loader->Load(name, size, weight);
+	Font* font = font_loader->Load(name, size, weight, outline);
 	font->type = ResourceType::Font;
 	font->state = ResourceState::Loaded;
 	font->path = res_name;
@@ -110,13 +109,16 @@ bool Gui::DrawText(Font* font, Cstring str, uint flags, Color color, const Rect&
 	uint text_end = strlen(str);
 	Vec4 current_color = Color(color);
 	Vec4 default_color = current_color;
-	outline_alpha = current_color.w;
 	const Vec2 scale(1, 1);
 
-	bool parse_special = IsSet(flags, DTF_PARSE_SPECIAL);
+	const bool parse_special = IsSet(flags, DTF_PARSE_SPECIAL);
+	use_outline = IsSet(flags, DTF_OUTLINE) && font->tex_outline;
+	if(use_outline)
+	{
+		current_outline_color = outline_color;
+		current_outline_color.w *= float(color.a) / 255;
+	}
 	bool bottom_clip = false;
-
-	Lock(font->tex, 1);
 
 	HitboxContext* hc;
 	if(hitboxes)
@@ -225,9 +227,9 @@ bool Gui::DrawText(Font* font, Cstring str, uint flags, Color color, const Rect&
 		// pocz¹tkowa pozycja y
 		int y;
 		if(IsSet(flags, DTF_BOTTOM))
-			y = rect.Bottom() - lines->size()*font->height;
+			y = rect.Bottom() - lines->size() * font->height;
 		else
-			y = rect.Top() + (rect.SizeY() - int(lines->size())*font->height) / 2;
+			y = rect.Top() + (rect.SizeY() - int(lines->size()) * font->height) / 2;
 
 		for(vector<TextLine>::const_iterator it = lines->begin(), end = lines->end(); it != end; ++it)
 		{
@@ -274,6 +276,11 @@ bool Gui::DrawText(Font* font, Cstring str, uint flags, Color color, const Rect&
 void Gui::DrawTextLine(Font* font, cstring text, uint line_begin, uint line_end, const Vec4& default_color, Vec4& current_color,
 	int x, int y, const Rect* clipping, HitboxContext* hc, bool parse_special, const Vec2& scale)
 {
+	if(use_outline)
+		DrawTextOutline(font, text, line_begin, line_end, x, y, clipping, parse_special, scale);
+
+	Lock(font->tex, 1);
+
 	for(uint i = line_begin; i < line_end; ++i)
 	{
 		char c = text[i];
@@ -425,7 +432,6 @@ void Gui::DrawTextLine(Font* font, cstring text, uint line_begin, uint line_end,
 
 		Font::Glyph& g = font->glyph[byte(c)];
 		Int2 glyph_size = Int2(g.width, font->height) * scale;
-
 		int clip_result = (clipping ? Clip(x, y, glyph_size.x, glyph_size.y, clipping) : 0);
 
 		if(clip_result == 0)
@@ -485,8 +491,8 @@ void Gui::DrawTextLine(Font* font, cstring text, uint line_begin, uint line_end,
 			shift.x /= orig_size.x;
 			shift.y /= orig_size.y;
 			Vec2 uv_size = g.uv.Size();
-			Box2d clip_uv(g.uv.v1 + Vec2(shift.x*uv_size.x, shift.y*uv_size.y));
-			clip_uv.v2 += Vec2(uv_size.x*s.x, uv_size.y*s.y);
+			Box2d clip_uv(g.uv.v1 + Vec2(shift.x * uv_size.x, shift.y * uv_size.y));
+			clip_uv.v2 += Vec2(uv_size.x * s.x, uv_size.y * s.y);
 
 			// dodaj znak do bufora
 			v->pos = clip_pos.LeftTop().XY();
@@ -536,9 +542,10 @@ void Gui::DrawTextLine(Font* font, cstring text, uint line_begin, uint line_end,
 			break;
 		}
 
-		x += glyph_size.x;
 		if(in_buffer == MAX_QUADS)
 			Flush();
+
+		x += glyph_size.x;
 	}
 
 	// zamknij region
@@ -554,6 +561,160 @@ void Gui::DrawTextLine(Font* font, cstring text, uint line_begin, uint line_end,
 			h.index2 = hc->group_index2;
 		}
 		hc->region.Left() = INT_MAX;
+	}
+}
+
+//=================================================================================================
+void Gui::DrawTextOutline(Font* font, cstring text, uint line_begin, uint line_end, int x, int y, const Rect* clipping, bool parse_special, const Vec2& scale)
+{
+	Lock(font->tex_outline, 1);
+
+	for(uint i = line_begin; i < line_end; ++i)
+	{
+		char c = text[i];
+		if(c == '$' && parse_special)
+		{
+			++i;
+			assert(i < line_end);
+			c = text[i];
+			if(c == 'c')
+			{
+				// kolor
+				++i;
+				assert(i < line_end);
+				continue;
+			}
+			else if(c == 'h')
+			{
+				++i;
+				assert(i < line_end);
+				continue;
+			}
+			else if(c == 'g')
+			{
+				++i;
+				assert(i < line_end);
+				c = text[i];
+				if(c == '+')
+				{
+					++i;
+					assert(i < line_end);
+					int tmp;
+					font->ParseGroupIndex(text, line_end, i, tmp, tmp);
+				}
+				else if(c == '-')
+					continue;
+				else
+				{
+					// invalid group format
+					assert(0);
+				}
+			}
+			else if(c == '$')
+			{
+				// dwa znaki $$ to $
+			}
+			else
+			{
+				// nieznana opcja
+				assert(0);
+			}
+		}
+
+		const int ow = font->outline;
+		Font::Glyph& g = font->glyph[byte(c)];
+		Int2 glyph_size = Int2(g.width, font->height) * scale;
+		int clip_result = (clipping ? Clip(x, y, glyph_size.x, glyph_size.y, clipping) : 0);
+
+		if(clip_result == 0)
+		{
+			// dodaj znak do bufora
+			v->pos = Vec3(float(x - ow), float(y - ow), 0);
+			v->color = current_outline_color;
+			v->tex = g.uv.LeftTop();
+			++v;
+
+			v->pos = Vec3(float(x + glyph_size.x + ow), float(y - ow), 0);
+			v->color = current_outline_color;
+			v->tex = g.uv.RightTop();
+			++v;
+
+			v->pos = Vec3(float(x - ow), float(y + glyph_size.y + ow), 0);
+			v->color = current_outline_color;
+			v->tex = g.uv.LeftBottom();
+			++v;
+
+			v->pos = Vec3(float(x + glyph_size.x + ow), float(y - ow), 0);
+			v->color = current_outline_color;
+			v->tex = g.uv.RightTop();
+			++v;
+
+			v->pos = Vec3(float(x + glyph_size.x + ow), float(y + glyph_size.y + ow), 0);
+			v->color = current_outline_color;
+			v->tex = g.uv.RightBottom();
+			++v;
+
+			v->pos = Vec3(float(x - ow), float(y + glyph_size.y + ow), 0);
+			v->color = current_outline_color;
+			v->tex = g.uv.LeftBottom();
+			++v;
+
+			++in_buffer;
+		}
+		else if(clip_result == 5)
+		{
+			// przytnij znak
+			Box2d orig_pos = Box2d(float(x) - ow, float(y) - ow, float(x + g.width) + ow, float(y + font->height) + ow);
+			Box2d clip_pos(float(max(x, clipping->Left())), float(max(y, clipping->Top())),
+				float(min(x + glyph_size.x, clipping->Right())), float(min(y + glyph_size.y, clipping->Bottom())));
+			Vec2 orig_size = orig_pos.Size();
+			Vec2 clip_size = clip_pos.Size();
+			Vec2 s(clip_size.x / orig_size.x, clip_size.y / orig_size.y);
+			Vec2 shift = clip_pos.v1 - orig_pos.v1;
+			shift.x /= orig_size.x;
+			shift.y /= orig_size.y;
+			Vec2 uv_size = g.uv.Size();
+			Box2d clip_uv(g.uv.v1 + Vec2(shift.x * uv_size.x, shift.y * uv_size.y));
+			clip_uv.v2 += Vec2(uv_size.x * s.x, uv_size.y * s.y);
+
+			// dodaj znak do bufora
+			v->pos = clip_pos.LeftTop().XY();
+			v->color = current_outline_color;
+			v->tex = clip_uv.LeftTop();
+			++v;
+
+			v->pos = clip_pos.RightTop().XY();
+			v->color = current_outline_color;
+			v->tex = clip_uv.RightTop();
+			++v;
+
+			v->pos = clip_pos.LeftBottom().XY();
+			v->color = current_outline_color;
+			v->tex = clip_uv.LeftBottom();
+			++v;
+
+			v->pos = clip_pos.RightTop().XY();
+			v->color = current_outline_color;
+			v->tex = clip_uv.RightTop();
+			++v;
+
+			v->pos = clip_pos.RightBottom().XY();
+			v->color = current_outline_color;
+			v->tex = clip_uv.RightBottom();
+			++v;
+
+			v->pos = clip_pos.LeftBottom().XY();
+			v->color = current_outline_color;
+			v->tex = clip_uv.LeftBottom();
+			++v;
+
+			++in_buffer;
+		}
+
+		if(in_buffer == MAX_QUADS)
+			Flush();
+
+		x += glyph_size.x;
 	}
 }
 
@@ -588,6 +749,7 @@ void Gui::Draw()
 	wnd_size = app::engine->GetWindowSize();
 
 	shader->Prepare();
+	grayscale = false;
 
 	layer->Draw();
 	dialog_layer->Draw();
@@ -599,12 +761,6 @@ void Gui::Draw()
 		DrawSprite(layout->cursor[cursor_mode], pos);
 	}
 	Flush();
-
-
-	/*app::render->SetAlphaTest(false);
-	app::render->SetAlphaBlend(true);
-	app::render->SetNoCulling(true);
-	app::render->SetNoZWrite(false);*/
 }
 
 //=================================================================================================
@@ -1036,7 +1192,7 @@ DialogBox* Gui::ShowDialog(const DialogInfo& info)
 	{
 		d->bts.resize(2);
 		Button& bt1 = d->bts[0],
-			&bt2 = d->bts[1];
+			& bt2 = d->bts[1];
 
 		if(info.custom_names)
 		{
@@ -1090,7 +1246,7 @@ DialogBox* Gui::ShowDialog(const DialogInfo& info)
 	else
 	{
 		Button& bt1 = d->bts[0],
-			&bt2 = d->bts[1];
+			& bt2 = d->bts[1];
 		bt1.pos.y = bt2.pos.y = d->size.y - 8 - bt1.size.y;
 		bt1.pos.x = 12;
 		bt2.pos.x = d->size.x - bt2.size.x - 12;
@@ -1494,76 +1650,6 @@ void Gui::DrawSpriteTransform(Texture* t, const Matrix& mat, Color color)
 }
 
 //=================================================================================================
-void Gui::DrawLine(const Vec2* lines, uint count, Color color, bool strip)
-{
-	assert(lines && count);
-
-	FIXME;
-	//Lock();
-
-	Vec4 col = Color(color);
-	uint counter = count;
-
-	if(strip)
-	{
-		v->pos = (*lines++).XY();
-		v->color = col;
-		++v;
-
-		while(counter--)
-		{
-			v->pos = (*lines++).XY();
-			v->color = col;
-			++v;
-		}
-	}
-	else
-	{
-		while(counter--)
-		{
-			v->pos = (*lines++).XY();
-			v->color = col;
-			++v;
-
-			v->pos = (*lines++).XY();
-			v->color = col;
-			++v;
-		}
-	}
-
-
-	FIXME;
-	/*V(vb->Unlock());
-	V(device->SetVertexDeclaration(vertex_decl));
-	V(device->SetStreamSource(0, vb, 0, sizeof(VParticle)));
-	V(device->DrawPrimitive(strip ? D3DPT_LINESTRIP : D3DPT_LINELIST, 0, count));*/
-}
-
-//=================================================================================================
-void Gui::LineBegin()
-{
-	FIXME;
-	/*effect->EndPass();
-	effect->End();
-	effect->SetTechnique(techGui2);
-	uint passes;
-	effect->Begin(&passes, 0);
-	effect->BeginPass(0);*/
-}
-
-//=================================================================================================
-void Gui::LineEnd()
-{
-	FIXME;
-	/*effect->EndPass();
-	effect->End();
-	effect->SetTechnique(techGui);
-	uint passes;
-	effect->Begin(&passes, 0);
-	effect->BeginPass(0);*/
-}
-
-//=================================================================================================
 bool Gui::NeedCursor()
 {
 	if(!dialog_layer->Empty())
@@ -1615,8 +1701,8 @@ bool Gui::To2dPoint(const Vec3& pos, Int2& pt)
 		v3 /= v4.w;
 	}
 
-	pt.x = int(v3.x*(wnd_size.x / 2) + (wnd_size.x / 2));
-	pt.y = -int(v3.y*(wnd_size.y / 2) - (wnd_size.y / 2));
+	pt.x = int(v3.x * (wnd_size.x / 2) + (wnd_size.x / 2));
+	pt.y = -int(v3.y * (wnd_size.y / 2) - (wnd_size.y / 2));
 
 	return true;
 }
@@ -1953,37 +2039,30 @@ cstring Gui::GetClipboard()
 //=================================================================================================
 void Gui::UseGrayscale(bool grayscale)
 {
-	assert(grayscale != this->grayscale);
-	this->grayscale = grayscale;
+	if(this->grayscale == grayscale)
+		return;
 
-	FIXME;
-	/*effect->EndPass();
-	effect->End();
-	effect->SetTechnique(grayscale ? techGuiGrayscale : techGui);
-	uint passes;
-	effect->Begin(&passes, 0);
-	effect->BeginPass(0);*/
+	Flush();
+	this->grayscale = grayscale;
+	shader->SetGrayscale(grayscale);
 }
 
 //=================================================================================================
 bool Gui::DrawText2(DrawTextOptions& options)
 {
-	FIXME;
-	return false;
-#if 0
 	uint line_begin, line_end, line_index = 0;
 	int line_width, width = options.rect.SizeX();
 	Vec4 current_color = Color(options.color);
 	Vec4 default_color = current_color;
-	outline_alpha = current_color.w;
 
-	bool outline = (IsSet(options.flags, DTF_OUTLINE) && options.font->texOutline);
+	use_outline = IsSet(options.flags, DTF_OUTLINE) && options.font->tex_outline;
+	if(use_outline)
+	{
+		current_outline_color = outline_color;
+		current_outline_color.w *= float(options.color.a) / 255;
+	}
 	bool parse_special = IsSet(options.flags, DTF_PARSE_SPECIAL);
 	bool bottom_clip = false;
-
-	tCurrent = options.font->tex;
-	if(outline)
-		tCurrent2 = options.font->texOutline;
 
 	HitboxContext* hc;
 	if(options.hitboxes)
@@ -1995,18 +2074,6 @@ bool Gui::DrawText2(DrawTextOptions& options)
 	}
 	else
 		hc = nullptr;
-
-	Lock(outline);
-
-	typedef void (Gui::*DrawLineF)(Font* font, cstring text, uint line_begin, uint line_end, const Vec4& def_color,
-		Vec4& color, int x, int y, const Rect* clipping, HitboxContext* hc, bool parse_special, const Vec2& scale);
-	DrawLineF call;
-	if(outline)
-		call = &Gui::DrawLineOutline;
-	else
-		call = &Gui::DrawLine;
-
-#define CALL (this->*call)
 
 	if(!IsSet(options.flags, DTF_VCENTER | DTF_BOTTOM))
 	{
@@ -2032,11 +2099,15 @@ bool Gui::DrawText2(DrawTextOptions& options)
 
 				// znaki w tej linijce
 				if(clip_result == 0)
-					CALL(options.font, options.str, line_begin, line_end, default_color, current_color, scaled_pos.x, scaled_pos.y, nullptr, hc, parse_special,
-						options.scale);
+				{
+					DrawTextLine(options.font, options.str, line_begin, line_end, default_color, current_color, scaled_pos.x, scaled_pos.y, nullptr,
+						hc, parse_special, options.scale);
+				}
 				else if(clip_result == 5)
-					CALL(options.font, options.str, line_begin, line_end, default_color, current_color, scaled_pos.x, scaled_pos.y, options.clipping, hc, parse_special,
-						options.scale);
+				{
+					DrawTextLine(options.font, options.str, line_begin, line_end, default_color, current_color, scaled_pos.x, scaled_pos.y, options.clipping,
+						hc, parse_special, options.scale);
+				}
 				else if(clip_result == 2)
 				{
 					// tekst jest pod widocznym regionem, przerwij rysowanie
@@ -2074,11 +2145,15 @@ bool Gui::DrawText2(DrawTextOptions& options)
 
 				// znaki w tej linijce
 				if(clip_result == 0)
-					CALL(options.font, options.str, line.begin, line.end, default_color, current_color, scaled_pos.x, scaled_pos.y, nullptr, hc, parse_special,
-						options.scale);
+				{
+					DrawTextLine(options.font, options.str, line.begin, line.end, default_color, current_color, scaled_pos.x, scaled_pos.y, nullptr,
+						hc, parse_special, options.scale);
+				}
 				else if(clip_result == 5)
-					CALL(options.font, options.str, line.begin, line.end, default_color, current_color, scaled_pos.x, scaled_pos.y, options.clipping, hc, parse_special,
-						options.scale);
+				{
+					DrawTextLine(options.font, options.str, line.begin, line.end, default_color, current_color, scaled_pos.x, scaled_pos.y, options.clipping,
+						hc, parse_special, options.scale);
+				}
 				else if(clip_result == 2)
 				{
 					// tekst jest pod widocznym regionem, przerwij rysowanie
@@ -2114,9 +2189,9 @@ bool Gui::DrawText2(DrawTextOptions& options)
 		// pocz¹tkowa pozycja y
 		int y;
 		if(IsSet(options.flags, DTF_BOTTOM))
-			y = options.rect.Bottom() - options.lines->size()*options.font->height;
+			y = options.rect.Bottom() - options.lines->size() * options.font->height;
 		else
-			y = options.rect.Top() + (options.rect.SizeY() - int(options.lines->size())*options.font->height) / 2;
+			y = options.rect.Top() + (options.rect.SizeY() - int(options.lines->size()) * options.font->height) / 2;
 
 		for(uint line_index = options.lines_start, lines_max = min(options.lines_end, options.lines->size()); line_index < lines_max; ++line_index)
 		{
@@ -2137,11 +2212,15 @@ bool Gui::DrawText2(DrawTextOptions& options)
 
 			// znaki w tej linijce
 			if(clip_result == 0)
-				CALL(options.font, options.str, line.begin, line.end, default_color, current_color, scaled_pos.x, scaled_pos.y, nullptr, hc, parse_special,
-					options.scale);
+			{
+				DrawTextLine(options.font, options.str, line.begin, line.end, default_color, current_color, scaled_pos.x, scaled_pos.y, nullptr,
+					hc, parse_special, options.scale);
+			}
 			else if(clip_result == 5)
-				CALL(options.font, options.str, line.begin, line.end, default_color, current_color, scaled_pos.x, scaled_pos.y, options.clipping, hc, parse_special,
-					options.scale);
+			{
+				DrawTextLine(options.font, options.str, line.begin, line.end, default_color, current_color, scaled_pos.x, scaled_pos.y, options.clipping,
+					hc, parse_special, options.scale);
+			}
 			else if(clip_result == 2)
 			{
 				// tekst jest pod widocznym regionem, przerwij rysowanie
@@ -2165,7 +2244,6 @@ bool Gui::DrawText2(DrawTextOptions& options)
 		*options.hitbox_counter = hc->counter;
 
 	return !bottom_clip;
-#endif
 }
 
 //=================================================================================================

@@ -126,7 +126,7 @@ public:
 	void SetText(cstring ok, cstring yes, cstring no, cstring cancel);
 	void Draw();
 	bool AddFont(cstring filename);
-	Font* GetFont(cstring name, int size, int weight);
+	Font* GetFont(cstring name, int size, int weight = 4, int outline = 0);
 	/* zaawansowane renderowanie tekstu (w porównaniu do ID3DXFont)
 	zwraca false je¿eli by³ clipping od do³u (nie kontuuj tekstu w flow)
 	Znak $ oznacza jak¹œ specjaln¹ czynnoœæ (o ile jest ustawiona flaga DTF_PARSE_SPECIAL):
@@ -161,9 +161,6 @@ public:
 	void OnResize();
 	void DrawSpriteRectPart(Texture* t, const Rect& rect, const Rect& part, Color color = Color::White);
 	void DrawSpriteTransform(Texture* t, const Matrix& mat, Color color = Color::White);
-	void DrawLine(const Vec2* lines, uint count, Color color = Color::Black, bool strip = true);
-	void LineBegin();
-	void LineEnd();
 	bool NeedCursor();
 	bool DrawText3D(Font* font, Cstring text, uint flags, Color color, const Vec3& pos, Rect* text_rect = nullptr);
 	bool To2dPoint(const Vec3& pos, Int2& pt);
@@ -211,6 +208,7 @@ public:
 		}
 	};
 	bool DrawText2(DrawTextOptions& options);
+	void SetOutlineColor(Color color) { outline_color = color; }
 
 	Matrix mViewProj;
 	Int2 cursor_pos, prev_cursor_pos, wnd_size;
@@ -224,6 +222,7 @@ private:
 
 	void DrawTextLine(Font* font, cstring text, uint line_begin, uint line_end, const Vec4& def_color, Vec4& color, int x, int y, const Rect* clipping,
 		HitboxContext* hc, bool parse_special, const Vec2& scale);
+	void DrawTextOutline(Font* font, cstring text, uint line_begin, uint line_end, int x, int y, const Rect* clipping, bool parse_special, const Vec2& scale);
 	int Clip(int x, int y, int w, int h, const Rect* clipping);
 	void Lock(TEX tex, uint count);
 	void Flush();
@@ -240,8 +239,9 @@ private:
 	uint in_buffer;
 	HitboxContext tmpHitboxContext;
 	vector<OnCharHandler*> on_char;
-	bool grayscale;
-	float outline_alpha;
+	Color outline_color;
+	Vec4 current_outline_color;
+	bool grayscale, use_outline;
 	Layout* master_layout;
 	layout::Gui* layout;
 	Overlay* overlay;

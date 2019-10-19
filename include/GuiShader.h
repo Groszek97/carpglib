@@ -11,6 +11,7 @@ public:
 	~GuiShader();
 	void Init();
 	void Prepare();
+	void SetGrayscale(bool grayscale);
 	void Draw(TEX tex, VParticle* verts, uint quads);
 
 private:

@@ -84,10 +84,17 @@ void GuiShader::Prepare()
 	device_context->VSSetConstantBuffers(0, 1, &vs_buffer);
 
 	// pixel shader constants
-	V(device_context->Map(ps_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &resource));
-	*(bool*)resource.pData = false;
-	device_context->Unmap(ps_buffer, 0);
+	SetGrayscale(false);
 	device_context->PSSetConstantBuffers(0, 1, &ps_buffer);
+}
+
+//=================================================================================================
+void GuiShader::SetGrayscale(bool grayscale)
+{
+	D3D11_MAPPED_SUBRESOURCE resource;
+	V(device_context->Map(ps_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &resource));
+	*(int*)resource.pData = grayscale ? 1 : 0;
+	device_context->Unmap(ps_buffer, 0);
 }
 
 //=================================================================================================
