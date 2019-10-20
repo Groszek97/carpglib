@@ -23,7 +23,7 @@ struct VERTEX_OUTPUT
 	float4 color : COLOR0;
 };
 
-void vs_entry(in VERTEX_INPUT In, out VERTEX_OUTPUT Out)
+void vs_main(in VERTEX_INPUT In, out VERTEX_OUTPUT Out)
 {
 	// fix half pixel problem
 	Out.pos.x = ((In.pos.x - 0.5f) / (size.x * 0.5f)) - 1.0f;
@@ -34,7 +34,7 @@ void vs_entry(in VERTEX_INPUT In, out VERTEX_OUTPUT Out)
 	Out.color = In.color;
 }
 
-float4 ps_entry(in VERTEX_OUTPUT In) : SV_TARGET
+float4 ps_main(in VERTEX_OUTPUT In) : SV_TARGET
 {
 	float4 c = texture0.Sample(sampler0, In.tex) * In.color;
 	if(grayscale)

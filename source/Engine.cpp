@@ -157,8 +157,12 @@ void Engine::DoTick(bool update_game)
 		return;
 	}
 
-	app::input->UpdateMouseWheel(0);
+	// rendering
+	app::render->Clear(app::scene_mgr->GetClearColor());
 	app::scene_mgr->Draw();
+	app::gui->Draw();
+	app::render->Present();
+
 	app::input->Update();
 	app::sound_mgr->Update(dt);
 }

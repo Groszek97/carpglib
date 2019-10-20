@@ -114,6 +114,7 @@
     <ClCompile Include="source\BoxToBox.cpp" />
     <ClCompile Include="source\Bresenham.cpp" />
     <ClCompile Include="source\Button.cpp" />
+    <ClCompile Include="source\Camera.cpp" />
     <ClCompile Include="source\CheckBox.cpp" />
     <ClCompile Include="source\CheckBoxGroup.cpp" />
     <ClCompile Include="source\Color.cpp" />
@@ -173,6 +174,7 @@
     <ClCompile Include="source\ResourceManager.cpp" />
     <ClCompile Include="source\Scene.cpp" />
     <ClCompile Include="source\SceneManager.cpp" />
+    <ClCompile Include="source\SceneNode.cpp" />
     <ClCompile Include="source\Scrollbar.cpp" />
     <ClCompile Include="source\Slider.cpp" />
     <ClCompile Include="source\SoundManager.cpp" />

@@ -943,16 +943,16 @@ void Render::SetTarget(RenderTarget* target)
 }
 
 void Render::CreateShader(cstring filename, D3D11_INPUT_ELEMENT_DESC* input, uint input_count, ID3D11VertexShader*& vertex_shader,
-	ID3D11PixelShader*& pixel_shader, ID3D11InputLayout*& layout)
+	ID3D11PixelShader*& pixel_shader, ID3D11InputLayout*& layout, D3D_SHADER_MACRO* macro)
 {
 	try
 	{
-		CPtr<ID3DBlob> vs_buf = CompileShader(filename, "vs_entry", true);
+		CPtr<ID3DBlob> vs_buf = CompileShader(filename, "vs_main", true, macro);
 		HRESULT result = device->CreateVertexShader(vs_buf->GetBufferPointer(), vs_buf->GetBufferSize(), nullptr, &vertex_shader);
 		if(FAILED(result))
 			throw Format("Failed to create vertex shader (%u).", result);
 
-		CPtr<ID3DBlob> ps_buf = CompileShader(filename, "ps_entry", false);
+		CPtr<ID3DBlob> ps_buf = CompileShader(filename, "ps_main", false, macro);
 		result = device->CreatePixelShader(ps_buf->GetBufferPointer(), ps_buf->GetBufferSize(), nullptr, &pixel_shader);
 		if(FAILED(result))
 			throw Format("Failed to create pixel shader (%u).", result);
@@ -967,7 +967,7 @@ void Render::CreateShader(cstring filename, D3D11_INPUT_ELEMENT_DESC* input, uin
 	}
 }
 
-ID3DBlob* Render::CompileShader(cstring filename, cstring entry, bool is_vertex)
+ID3DBlob* Render::CompileShader(cstring filename, cstring entry, bool is_vertex, D3D_SHADER_MACRO* macro)
 {
 	assert(filename && entry);
 
@@ -981,7 +981,7 @@ ID3DBlob* Render::CompileShader(cstring filename, cstring entry, bool is_vertex)
 	cstring path = Format("%s/%s", shaders_dir.c_str(), filename);
 	ID3DBlob* shader_blob = nullptr;
 	ID3DBlob* error_blob = nullptr;
-	HRESULT result = D3DCompileFromFile(ToWString(path), nullptr, nullptr, entry, target, flags, 0, &shader_blob, &error_blob);
+	HRESULT result = D3DCompileFromFile(ToWString(path), macro, nullptr, entry, target, flags, 0, &shader_blob, &error_blob);
 	if(FAILED(result))
 	{
 		SafeRelease(shader_blob);
@@ -1068,4 +1068,15 @@ void Render::OnChangeResolution()
 	V(swap_chain->ResizeBuffers(1, wnd_size.x, wnd_size.y, DISPLAY_FORMAT, DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH));
 
 	CreateSizeDependentResources();
+}
+
+void Render::Clear(const Vec4& color)
+{
+	device_context->ClearRenderTargetView(render_target, (const float*)color);
+	device_context->ClearDepthStencilView(depth_stencil_view, D3D11_CLEAR_DEPTH, 1.f, 0);
+}
+
+void Render::Present()
+{
+	V(swap_chain->Present(vsync ? 1 : 0, 0));
 }

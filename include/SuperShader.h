@@ -1,15 +1,13 @@
 #pragma once
 
 //-----------------------------------------------------------------------------
-#include "ShaderHandler.h"
-
-//-----------------------------------------------------------------------------
-class SuperShader : public ShaderHandler
+class SuperShader
 {
 	enum Switches
 	{
-		ANIMATED,
+		HAVE_WEIGHT,
 		HAVE_BINORMALS,
+		ANIMATED,
 		FOG,
 		SPECULAR,
 		NORMAL,
@@ -19,28 +17,35 @@ class SuperShader : public ShaderHandler
 
 	struct Shader
 	{
-		ID3DXEffect* e;
 		uint id;
+		ID3D11VertexShader* vertex_shader;
+		ID3D11PixelShader* pixel_shader;
+		ID3D11InputLayout* layout;
+	};
+
+	struct VertexGlobals
+	{
+		Matrix mat_combined;
+		Matrix mat_world;
+		Matrix mat_bones[32];
 	};
 
 public:
 	SuperShader();
 	~SuperShader();
-	void OnInit() override;
-	void OnReset() override;
-	void OnReload() override;
-	void OnRelease() override;
-	uint GetShaderId(bool animated, bool have_binormals, bool fog, bool specular, bool normal, bool point_light, bool dir_light) const;
-	ID3DXEffect* GetShader(uint id);
-	ID3DXEffect* CompileShader(uint id);
-	ID3DXEffect* GetEffect() const { return shaders.front().e; }
-
-	D3DXHANDLE hMatCombined, hMatWorld, hMatBones, hTint, hAmbientColor, hFogColor, hFogParams, hLightDir, hLightColor, hLights, hSpecularColor,
-		hSpecularIntensity, hSpecularHardness, hCameraPos, hTexDiffuse, hTexNormal, hTexSpecular;
+	uint GetShaderId(bool have_weight, bool have_binormals, bool animated, bool fog, bool specular, bool normal, bool point_light, bool dir_light) const;
+	void SetShader(uint id);
+	void Prepare(Camera& camera);
+	void Draw(SceneNode* node);
 
 private:
-	string code;
-	FileTime edit_time;
-	ID3DXEffectPool* pool;
+	void Init();
+	Shader& GetShader(uint id);
+	Shader& CompileShader(uint id);
+
+	ID3D11DeviceContext* device_context;
+	ID3D11SamplerState* sampler_diffuse;
+	ID3D11Buffer* vs_buffer;
 	vector<Shader> shaders;
+	Matrix mat_view_proj;
 };

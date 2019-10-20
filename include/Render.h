@@ -45,6 +45,8 @@ public:
 	Render();
 	~Render();
 	void Init();
+	void Clear(const Vec4& color);
+	void Present();
 	//ID3DXEffect* CompileShader(cstring name);
 	//ID3DXEffect* CompileShader(CompileShaderParams& params);
 	TEX CreateTexture(const Int2& size, Color* fill);
@@ -73,8 +75,8 @@ public:
 
 	void OnChangeResolution();
 	void CreateShader(cstring filename, D3D11_INPUT_ELEMENT_DESC* input, uint input_count, ID3D11VertexShader*& vertex_shader,
-		ID3D11PixelShader*& pixel_shader, ID3D11InputLayout*& layout);
-	ID3DBlob* CompileShader(cstring filename, cstring entry, bool is_vertex);
+		ID3D11PixelShader*& pixel_shader, ID3D11InputLayout*& layout, D3D_SHADER_MACRO* macro = nullptr);
+	ID3DBlob* CompileShader(cstring filename, cstring entry, bool is_vertex, D3D_SHADER_MACRO* macro);
 	ID3D11Buffer* CreateConstantBuffer(uint size);
 	ID3D11SamplerState* CreateSampler(TextureAddressMode mode = TEX_ADR_WRAP);
 

@@ -4,14 +4,12 @@
 #include "Scene.h"
 #include "SceneNode.h"
 #include "Camera.h"
-#include "Mesh.h"
-#include "Render.h"
-#include "Gui.h"
-#include "DirectX.h"
+#include "MeshInstance.h"
+#include "SuperShader.h"
 
 SceneManager* app::scene_mgr;
 
-SceneManager::SceneManager() : scene(nullptr), camera(nullptr)
+SceneManager::SceneManager() : scene(nullptr), camera(nullptr), shader(nullptr)
 {
 }
 
@@ -19,98 +17,39 @@ SceneManager::~SceneManager()
 {
 	DeleteElements(scenes);
 	DeleteElements(cameras);
-
-	SafeRelease(vertex_shader);
-	SafeRelease(pixel_shader);
-	SafeRelease(layout);
-	SafeRelease(vs_buffer);
-	SafeRelease(sampler);
+	delete shader;
 }
 
 void SceneManager::Init()
 {
-	device_context = app::render->device_context;
-
-	ID3DBlob* vs_buf = app::render->CompileShader("test.hlsl", "vs_main", true);
-	HRESULT result = app::render->device->CreateVertexShader(vs_buf->GetBufferPointer(), vs_buf->GetBufferSize(), nullptr, &vertex_shader);
-	//if(FAILED(result))
-	//	throw Format("Failed to create vertex shader '%s' (%u).", filename, result);
-
-	ID3DBlob* ps_buf = app::render->CompileShader("test.hlsl", "ps_main", false);
-	result = app::render->device->CreatePixelShader(ps_buf->GetBufferPointer(), ps_buf->GetBufferSize(), nullptr, &pixel_shader);
-	//if(FAILED(result))
-	//	throw Format("Failed to create pixel shader '%s' (%u).", filename, result);
-
-	// create layout
-	D3D11_INPUT_ELEMENT_DESC desc[] = {
-		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 }
-	};
-	result = app::render->device->CreateInputLayout(desc, countof(desc), vs_buf->GetBufferPointer(), vs_buf->GetBufferSize(), &layout);
-	//if(FAILED(result))
-	//	throw Format("Failed to create input layout '%s' (%u).", filename, result);
-
-	vs_buffer = app::render->CreateConstantBuffer(sizeof(Matrix));
-
-	vs_buf->Release();
-	ps_buf->Release();
-
-	// create texture sampler
-	sampler = app::render->CreateSampler();
+	shader = new SuperShader;
 }
 
 void SceneManager::Draw()
 {
-	Vec4 color = scene ? scene->clear_color : Color::Black;
-	device_context->ClearRenderTargetView(app::render->render_target, (float*)color);
-	device_context->ClearDepthStencilView(app::render->depth_stencil_view, D3D11_CLEAR_DEPTH, 1.f, 0);
+	if(!scene || !camera)
+		return;
 
-	if(scene && camera)
-		DrawScene();
-
-	app::gui->Draw();
-
-	V(app::render->swap_chain->Present(app::render->vsync ? 1 : 0, 0));
-}
-
-void SceneManager::DrawScene()
-{
-	app::render->SetAlphaBlend(false);
-	app::render->SetDepthState(Render::DEPTH_YES);
-
-	device_context->IASetInputLayout(layout);
-	device_context->VSSetShader(vertex_shader, nullptr, 0);
-	device_context->PSSetShader(pixel_shader, nullptr, 0);
-	device_context->PSSetSamplers(0, 1, &sampler);
-
-	Matrix mat_view = Matrix::CreateLookAt(camera->from, camera->to, camera->up),
-		mat_proj = Matrix::CreatePerspectiveFieldOfView(PI / 4, 1024.f / 768, 0.1f, 50.f),
-		mat_view_proj = mat_view * mat_proj;
-
+	shader->Prepare(*camera);
 	for(SceneNode* node : scene->nodes)
 	{
-		Matrix mat_world = Matrix::Rotation(node->rot) * Matrix::Translation(node->pos),
-			mat_combined = mat_world * mat_view_proj;
-
-		// set vs consts
-		D3D11_MAPPED_SUBRESOURCE resource;
-		V(device_context->Map(vs_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &resource));
-		Matrix& g = *(Matrix*)resource.pData;
-		g = mat_combined.Transpose();
-		device_context->Unmap(vs_buffer, 0);
-		device_context->VSSetConstantBuffers(0, 1, &vs_buffer);
-
-		Mesh* mesh = node->mesh;
-		uint stride = mesh->vertex_size,
-			offset = 0;
-		device_context->IASetVertexBuffers(0, 1, &mesh->vb, &stride, &offset);
-		device_context->IASetIndexBuffer(mesh->ib, DXGI_FORMAT_R16_UINT, 0);
-
-		for(Mesh::Submesh& sub : mesh->subs)
-		{
-			device_context->PSSetShaderResources(0, 1, &sub.tex->tex);
-			device_context->DrawIndexed(sub.tris * 3, sub.first * 3, sub.min_ind);
-		}
+		uint id = shader->GetShaderId(IsSet(node->mesh->head.flags, Mesh::F_ANIMATED), IsSet(node->mesh->head.flags, Mesh::F_TANGENTS),
+			node->mesh_inst != nullptr, false, false, false, false, false);
+		shader->SetShader(id);
+		shader->Draw(node);
 	}
+}
+
+void SceneManager::Update(float dt)
+{
+	for(SceneNode* node : scene->nodes)
+	{
+		if(node->mesh_inst)
+			node->mesh_inst->Update(dt);
+	}
+}
+
+Vec4 SceneManager::GetClearColor() const
+{
+	return (Vec4)(scene ? scene->clear_color : Color::Black);
 }

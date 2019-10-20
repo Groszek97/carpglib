@@ -1,92 +1,59 @@
 #include "EnginePch.h"
 #include "EngineCore.h"
-FIXME;
-#if 0
 #include "SuperShader.h"
-#include "File.h"
+#include "SceneNode.h"
+#include "Camera.h"
 #include "Render.h"
+#include "MeshInstance.h"
 #include "DirectX.h"
+#include <d3dcompiler.h>
 
 //=================================================================================================
-SuperShader::SuperShader() : pool(nullptr)
+SuperShader::SuperShader() : sampler_diffuse(nullptr), vs_buffer(nullptr)
 {
-	V(D3DXCreateEffectPool(&pool));
+	try
+	{
+		Init();
+	}
+	catch(cstring err)
+	{
+		throw Format("Failed to initialize super shader: %s", err);
+	}
 }
 
 //=================================================================================================
 SuperShader::~SuperShader()
 {
-	SafeRelease(pool);
-}
-
-//=================================================================================================
-void SuperShader::OnInit()
-{
-	cstring path = Format("%s/super.fx", app::render->GetShadersDir().c_str());
-	FileReader f(path);
-	if(!f)
-		throw Format("Failed to open file '%s'.", path);
-	FileTime file_time = f.GetTime();
-	if(file_time != edit_time)
+	for(Shader& shader : shaders)
 	{
-		f.ReadToString(code);
-		edit_time = file_time;
+		SafeRelease(shader.vertex_shader);
+		SafeRelease(shader.pixel_shader);
+		SafeRelease(shader.layout);
 	}
-
-	Info("Setting up super shader parameters.");
-	GetShader(0);
-	ID3DXEffect* e = shaders[0].e;
-	hMatCombined = e->GetParameterByName(nullptr, "matCombined");
-	hMatWorld = e->GetParameterByName(nullptr, "matWorld");
-	hMatBones = e->GetParameterByName(nullptr, "matBones");
-	hTint = e->GetParameterByName(nullptr, "tint");
-	hAmbientColor = e->GetParameterByName(nullptr, "ambientColor");
-	hFogColor = e->GetParameterByName(nullptr, "fogColor");
-	hFogParams = e->GetParameterByName(nullptr, "fogParams");
-	hLightDir = e->GetParameterByName(nullptr, "lightDir");
-	hLightColor = e->GetParameterByName(nullptr, "lightColor");
-	hLights = e->GetParameterByName(nullptr, "lights");
-	hSpecularColor = e->GetParameterByName(nullptr, "specularColor");
-	hSpecularIntensity = e->GetParameterByName(nullptr, "specularIntensity");
-	hSpecularHardness = e->GetParameterByName(nullptr, "specularHardness");
-	hCameraPos = e->GetParameterByName(nullptr, "cameraPos");
-	hTexDiffuse = e->GetParameterByName(nullptr, "texDiffuse");
-	hTexNormal = e->GetParameterByName(nullptr, "texNormal");
-	hTexSpecular = e->GetParameterByName(nullptr, "texSpecular");
-	assert(hMatCombined && hMatWorld && hMatBones && hTint && hAmbientColor && hFogColor && hFogParams && hLightDir && hLightColor && hLights && hSpecularColor
-		&& hSpecularIntensity && hSpecularHardness && hCameraPos && hTexDiffuse && hTexNormal && hTexSpecular);
+	SafeRelease(sampler_diffuse);
+	SafeRelease(vs_buffer);
 }
 
 //=================================================================================================
-void SuperShader::OnReload()
+void SuperShader::Init()
 {
-	for(vector<Shader>::iterator it = shaders.begin(), end = shaders.end(); it != end; ++it)
-		V(it->e->OnResetDevice());
+	device_context = app::render->GetDeviceContext();
+
+	sampler_diffuse = app::render->CreateSampler();
+
+	vs_buffer = app::render->CreateConstantBuffer(sizeof(VertexGlobals));
 }
 
 //=================================================================================================
-void SuperShader::OnReset()
-{
-	for(vector<Shader>::iterator it = shaders.begin(), end = shaders.end(); it != end; ++it)
-		V(it->e->OnLostDevice());
-}
-
-//=================================================================================================
-void SuperShader::OnRelease()
-{
-	for(vector<Shader>::iterator it = shaders.begin(), end = shaders.end(); it != end; ++it)
-		SafeRelease(it->e);
-	shaders.clear();
-}
-
-//=================================================================================================
-uint SuperShader::GetShaderId(bool animated, bool have_binormals, bool fog, bool specular, bool normal, bool point_light, bool dir_light) const
+uint SuperShader::GetShaderId(bool have_weight, bool have_binormals, bool animated, bool fog, bool specular, bool normal, bool point_light, bool dir_light) const
 {
 	uint id = 0;
-	if(animated)
-		id |= (1 << ANIMATED);
+	if(have_weight)
+		id |= (1 << HAVE_WEIGHT);
 	if(have_binormals)
 		id |= (1 << HAVE_BINORMALS);
+	if(animated)
+		id |= (1 << ANIMATED);
 	if(fog)
 		id |= (1 << FOG);
 	if(specular)
@@ -100,34 +67,70 @@ uint SuperShader::GetShaderId(bool animated, bool have_binormals, bool fog, bool
 	return id;
 }
 
-//=================================================================================================
-ID3DXEffect* SuperShader::GetShader(uint id)
+void SuperShader::Prepare(Camera& camera)
 {
-	for(vector<Shader>::iterator it = shaders.begin(), end = shaders.end(); it != end; ++it)
+	mat_view_proj = camera.GetViewProjMatrix();
+
+	app::render->SetAlphaBlend(false);
+	app::render->SetDepthState(Render::DEPTH_YES);
+
+	device_context->PSSetSamplers(0, 1, &sampler_diffuse);
+
+	device_context->VSSetConstantBuffers(0, 1, &vs_buffer);
+}
+
+void SuperShader::SetShader(uint id)
+{
+	Shader& shader = GetShader(id);
+
+	device_context->IASetInputLayout(shader.layout);
+	device_context->VSSetShader(shader.vertex_shader, nullptr, 0);
+	device_context->PSSetShader(shader.pixel_shader, nullptr, 0);
+}
+
+SuperShader::Shader& SuperShader::GetShader(uint id)
+{
+	for(Shader& shader : shaders)
 	{
-		if(it->id == id)
-			return it->e;
+		if(shader.id == id)
+			return shader;
 	}
 
 	return CompileShader(id);
 }
 
-//=================================================================================================
-ID3DXEffect* SuperShader::CompileShader(uint id)
+SuperShader::Shader& SuperShader::CompileShader(uint id)
 {
-	int shader_version = app::render->GetShaderVersion();
-	D3DXMACRO macros[10] = { 0 };
+	// setup layout
+	vector<D3D11_INPUT_ELEMENT_DESC> layout_desc;
+	layout_desc.push_back({ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 });
+	if(IsSet(id, 1 << HAVE_WEIGHT))
+	{
+		layout_desc.push_back({ "BLENDWEIGHT", 0, DXGI_FORMAT_R32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 });
+		layout_desc.push_back({ "BLENDINDICES", 0, DXGI_FORMAT_R8G8B8A8_UINT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 });
+	}
+	layout_desc.push_back({ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 });
+	layout_desc.push_back({ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 });
+
+	// setup macros
+	D3D_SHADER_MACRO macros[8] = {};
 	uint i = 0;
 
-	if(IsSet(id, 1 << ANIMATED))
+	if(IsSet(id, 1 << HAVE_WEIGHT))
 	{
-		macros[i].Name = "ANIMATED";
+		macros[i].Name = "HAVE_WEIGHT";
 		macros[i].Definition = "1";
 		++i;
 	}
 	if(IsSet(id, 1 << HAVE_BINORMALS))
 	{
 		macros[i].Name = "HAVE_BINORMALS";
+		macros[i].Definition = "1";
+		++i;
+	}
+	if(IsSet(id, 1 << ANIMATED))
+	{
+		macros[i].Name = "ANIMATED";
 		macros[i].Definition = "1";
 		++i;
 	}
@@ -154,10 +157,6 @@ ID3DXEffect* SuperShader::CompileShader(uint id)
 		macros[i].Name = "POINT_LIGHT";
 		macros[i].Definition = "1";
 		++i;
-
-		macros[i].Name = "LIGHTS";
-		macros[i].Definition = (shader_version == 2 ? "2" : "3");
-		++i;
 	}
 	else if(IsSet(id, 1 << DIR_LIGHT))
 	{
@@ -166,27 +165,46 @@ ID3DXEffect* SuperShader::CompileShader(uint id)
 		++i;
 	}
 
-	macros[i].Name = "VS_VERSION";
-	macros[i].Definition = (shader_version == 3 ? "vs_3_0" : "vs_2_0");
-	++i;
-
-	macros[i].Name = "PS_VERSION";
-	macros[i].Definition = (shader_version == 3 ? "ps_3_0" : "ps_2_0");
-	++i;
-
-	Info("Compiling super shader: %u", id);
-
-	CompileShaderParams params = { "super.fx" };
-	params.cache_name = Format("%d_super%u.fcx", shader_version, id);
-	params.file_time = edit_time;
-	params.input = &code;
-	params.macros = macros;
-	params.pool = pool;
-
-	Shader& s = Add1(shaders);
-	s.e = app::render->CompileShader(params);
-	s.id = id;
-
-	return s.e;
+	// compile
+	Shader shader;
+	shader.id = id;
+	app::render->CreateShader("super.hlsl", layout_desc.data(), layout_desc.size(), shader.vertex_shader, shader.pixel_shader, shader.layout, macros);
+	shaders.push_back(shader);
+	return shaders.back();
 }
-#endif
+
+void SuperShader::Draw(SceneNode* node)
+{
+	assert(node);
+
+	Matrix mat_world = Matrix::Rotation(node->rot) * Matrix::Translation(node->pos);
+	Matrix mat_combined = mat_world * mat_view_proj;
+
+	// set vs consts
+	D3D11_MAPPED_SUBRESOURCE resource;
+	V(device_context->Map(vs_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &resource));
+	VertexGlobals& g = *(VertexGlobals*)resource.pData;
+	g.mat_combined = mat_combined.Transpose();
+	g.mat_world = mat_world.Transpose();
+	if(node->mesh_inst)
+	{
+		node->mesh_inst->SetupBones();
+		for(int i = 0; i < node->mesh->head.n_bones; ++i)
+			g.mat_bones[i] = node->mesh_inst->mat_bones[i].Transpose();
+	}
+	device_context->Unmap(vs_buffer, 0);
+
+	// set buffers
+	Mesh* mesh = node->mesh;
+	uint stride = mesh->vertex_size,
+		offset = 0;
+	device_context->IASetVertexBuffers(0, 1, &mesh->vb, &stride, &offset);
+	device_context->IASetIndexBuffer(mesh->ib, DXGI_FORMAT_R16_UINT, 0);
+
+	// draw
+	for(Mesh::Submesh& sub : mesh->subs)
+	{
+		device_context->PSSetShaderResources(0, 1, &sub.tex->tex);
+		device_context->DrawIndexed(sub.tris * 3, sub.first * 3, sub.min_ind);
+	}
+}

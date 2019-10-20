@@ -32,6 +32,7 @@ void Input::Update()
 	for(Key k : to_release)
 		SetState(k, IS_RELEASED);
 	to_release.clear();
+	mouse_wheel = 0;
 }
 
 //=================================================================================================
