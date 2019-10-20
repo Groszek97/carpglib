@@ -15,6 +15,8 @@ public:
 	void SetActive(Scene* scene) { this->scene = scene; }
 	void SetActive(Camera* camera) { this->camera = camera; }
 
+	bool fog_enabled;
+
 private:
 	SuperShader* shader;
 	vector<Scene*> scenes;

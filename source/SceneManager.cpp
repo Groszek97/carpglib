@@ -9,7 +9,7 @@
 
 SceneManager* app::scene_mgr;
 
-SceneManager::SceneManager() : scene(nullptr), camera(nullptr), shader(nullptr)
+SceneManager::SceneManager() : scene(nullptr), camera(nullptr), shader(nullptr), fog_enabled(true)
 {
 }
 
@@ -31,10 +31,15 @@ void SceneManager::Draw()
 		return;
 
 	shader->Prepare(*camera);
+
+	const bool use_fog = (fog_enabled && scene->use_fog);
+	if(use_fog)
+		shader->SetFog(scene->fog_color, scene->fog_range);
+
 	for(SceneNode* node : scene->nodes)
 	{
 		uint id = shader->GetShaderId(IsSet(node->mesh->head.flags, Mesh::F_ANIMATED), IsSet(node->mesh->head.flags, Mesh::F_TANGENTS),
-			node->mesh_inst != nullptr, false, false, false, false, false);
+			node->mesh_inst != nullptr, use_fog, false, false, false, false);
 		shader->SetShader(id);
 		shader->Draw(node);
 	}

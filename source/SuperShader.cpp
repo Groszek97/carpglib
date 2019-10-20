@@ -32,6 +32,7 @@ SuperShader::~SuperShader()
 	}
 	SafeRelease(sampler_diffuse);
 	SafeRelease(vs_buffer);
+	SafeRelease(ps_globals);
 }
 
 //=================================================================================================
@@ -42,6 +43,7 @@ void SuperShader::Init()
 	sampler_diffuse = app::render->CreateSampler();
 
 	vs_buffer = app::render->CreateConstantBuffer(sizeof(VertexGlobals));
+	ps_globals = app::render->CreateConstantBuffer(sizeof(PixelGlobals));
 }
 
 //=================================================================================================
@@ -67,6 +69,7 @@ uint SuperShader::GetShaderId(bool have_weight, bool have_binormals, bool animat
 	return id;
 }
 
+//=================================================================================================
 void SuperShader::Prepare(Camera& camera)
 {
 	mat_view_proj = camera.GetViewProjMatrix();
@@ -74,11 +77,20 @@ void SuperShader::Prepare(Camera& camera)
 	app::render->SetAlphaBlend(false);
 	app::render->SetDepthState(Render::DEPTH_YES);
 
-	device_context->PSSetSamplers(0, 1, &sampler_diffuse);
+	// set ps globals
+	D3D11_MAPPED_SUBRESOURCE resource;
+	V(device_context->Map(ps_globals, 0, D3D11_MAP_WRITE_DISCARD, 0, &resource));
+	PixelGlobals& g = *(PixelGlobals*)resource.pData;
+	g.fog_color = (Vec4)fog_color;
+	g.fog_params = Vec4(fog_range.x, fog_range.y, fog_range.y - fog_range.x, 0);
+	device_context->Unmap(ps_globals, 0);
 
+	device_context->PSSetSamplers(0, 1, &sampler_diffuse);
 	device_context->VSSetConstantBuffers(0, 1, &vs_buffer);
+	device_context->PSSetConstantBuffers(0, 1, &ps_globals);
 }
 
+//=================================================================================================
 void SuperShader::SetShader(uint id)
 {
 	Shader& shader = GetShader(id);
@@ -88,6 +100,7 @@ void SuperShader::SetShader(uint id)
 	device_context->PSSetShader(shader.pixel_shader, nullptr, 0);
 }
 
+//=================================================================================================
 SuperShader::Shader& SuperShader::GetShader(uint id)
 {
 	for(Shader& shader : shaders)
@@ -99,8 +112,11 @@ SuperShader::Shader& SuperShader::GetShader(uint id)
 	return CompileShader(id);
 }
 
+//=================================================================================================
 SuperShader::Shader& SuperShader::CompileShader(uint id)
 {
+	Info("Compiling super shader %u.", id);
+
 	// setup layout
 	vector<D3D11_INPUT_ELEMENT_DESC> layout_desc;
 	layout_desc.push_back({ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 });
@@ -173,6 +189,7 @@ SuperShader::Shader& SuperShader::CompileShader(uint id)
 	return shaders.back();
 }
 
+//=================================================================================================
 void SuperShader::Draw(SceneNode* node)
 {
 	assert(node);

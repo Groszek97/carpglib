@@ -282,6 +282,9 @@
     <ClInclude Include="include\GuiShader.h">
       <Filter>shaders</Filter>
     </ClInclude>
+    <ClInclude Include="include\FpsCamera.h">
+      <Filter>entity</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source\BoxToBox.cpp">
@@ -517,6 +520,9 @@
       <Filter>entity</Filter>
     </ClCompile>
     <ClCompile Include="source\SceneNode.cpp">
+      <Filter>entity</Filter>
+    </ClCompile>
+    <ClCompile Include="source\FpsCamera.cpp">
       <Filter>entity</Filter>
     </ClCompile>
   </ItemGroup>

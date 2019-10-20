@@ -5,6 +5,7 @@
 
 // Engine types
 struct Camera;
+struct FpsCamera;
 struct MeshInstance;
 struct ParticleEmitter;
 struct Scene;

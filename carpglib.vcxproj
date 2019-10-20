@@ -43,6 +43,7 @@
     <ClInclude Include="include\FlowContainer.h" />
     <ClInclude Include="include\Font.h" />
     <ClInclude Include="include\FontLoader.h" />
+    <ClInclude Include="include\FpsCamera.h" />
     <ClInclude Include="include\GetNumberDialog.h" />
     <ClInclude Include="include\GetTextDialog.h" />
     <ClInclude Include="include\GrassShader.h" />
@@ -139,6 +140,7 @@
     <ClCompile Include="source\FlowContainer.cpp" />
     <ClCompile Include="source\Font.cpp" />
     <ClCompile Include="source\FontLoader.cpp" />
+    <ClCompile Include="source\FpsCamera.cpp" />
     <ClCompile Include="source\GetNumberDialog.cpp" />
     <ClCompile Include="source\GetTextDialog.cpp" />
     <ClCompile Include="source\GrassShader.cpp" />

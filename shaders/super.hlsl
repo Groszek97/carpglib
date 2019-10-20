@@ -4,6 +4,13 @@ cbuffer vs_globals : register(b0)
 	matrix mat_world;
 	matrix mat_bones[32];
 };
+
+cbuffer ps_globals : register(b0)
+{
+	float4 fog_color;
+	float4 fog_params;
+};
+
 Texture2D tex_diffuse;
 SamplerState sampler_diffuse;
 
@@ -23,6 +30,9 @@ struct VS_OUTPUT
     float4 pos : SV_POSITION;
 	float2 tex : TEXCOORD0;
 	float3 normal : TEXCOORD1;
+#ifdef FOG
+	float pos_view_z : TEXCOORD2;
+#endif
 };
 
 VS_OUTPUT vs_main(VS_INPUT In)
@@ -50,11 +60,22 @@ VS_OUTPUT vs_main(VS_INPUT In)
 	// tex
 	Out.tex = In.tex;
 	
+	// distance for fog
+#ifdef FOG
+	Out.pos_view_z = Out.pos.w;
+#endif
+	
 	return Out;
 }
 
 float4 ps_main(VS_OUTPUT In) : SV_TARGET
 {
 	float4 tex = tex_diffuse.Sample(sampler_diffuse, In.tex);
+	
+#ifdef FOG
+	float fog = saturate((In.pos_view_z - fog_params.x) / fog_params.z);
+	return float4(lerp(tex.xyz, fog_color, fog), tex.w);
+#else
 	return tex;
+#endif
 }

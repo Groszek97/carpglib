@@ -126,7 +126,7 @@ void Engine::DoTick(bool update_game)
 				POINT pt;
 				GetCursorPos(&pt);
 				ScreenToClient(hwnd, &pt);
-				mouse_dif = Int2(pt.x, pt.y) - real_size / 2;
+				mouse_dif = Int2(pt.x, pt.y) - client_size / 2;
 			}
 			PlaceCursor();
 		}
