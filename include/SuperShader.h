@@ -25,6 +25,11 @@ class SuperShader
 
 	struct VertexGlobals
 	{
+		Vec3 camera_pos;
+	};
+
+	struct VertexLocals
+	{
 		Matrix mat_combined;
 		Matrix mat_world;
 		Matrix mat_bones[32];
@@ -38,6 +43,13 @@ class SuperShader
 		float _pad;
 		Vec4 fog_color;
 		Vec4 fog_params;
+	};
+
+	struct PixelLocals
+	{
+		Vec3 specular_color;
+		float specular_hardness;
+		float specular_intensity;
 	};
 
 public:
@@ -67,8 +79,10 @@ private:
 
 	ID3D11DeviceContext* device_context;
 	ID3D11SamplerState* sampler_diffuse;
-	ID3D11Buffer* vs_buffer;
+	ID3D11Buffer* vs_globals;
+	ID3D11Buffer* vs_locals;
 	ID3D11Buffer* ps_globals;
+	ID3D11Buffer* ps_locals;
 	vector<Shader> shaders;
 	Matrix mat_view_proj;
 	Vec3 light_dir;

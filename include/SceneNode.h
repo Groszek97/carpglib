@@ -3,6 +3,12 @@
 //-----------------------------------------------------------------------------
 struct SceneNode : public ObjectPoolProxy<SceneNode>
 {
+	enum Type
+	{
+		NORMAL,
+		LIGHT
+	};
+
 	enum Flags
 	{
 		HAVE_WEIGHT = 1 << 0,
@@ -17,11 +23,19 @@ struct SceneNode : public ObjectPoolProxy<SceneNode>
 	void OnFree();
 	void SetMesh(Mesh* mesh);
 	void SetMesh(MeshInstance* mesh_inst);
+	void SetLight(Color color, float range)
+	{
+		type = LIGHT;
+		tint = color;
+		scale.x = range;
+	}
 	void ApplyMeshFlags();
 
 	Matrix mat;
 	Vec3 pos, rot, scale;
+	Vec4 tint;
 	Mesh* mesh;
 	MeshInstance* mesh_inst;
+	Type type;
 	int flags, tmp_flags;
 };

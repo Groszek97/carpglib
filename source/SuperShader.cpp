@@ -9,7 +9,7 @@
 #include <d3dcompiler.h>
 
 //=================================================================================================
-SuperShader::SuperShader() : sampler_diffuse(nullptr), vs_buffer(nullptr)
+SuperShader::SuperShader() : sampler_diffuse(nullptr), vs_globals(nullptr), vs_locals(nullptr), ps_globals(nullptr), ps_locals(nullptr)
 {
 	try
 	{
@@ -31,8 +31,10 @@ SuperShader::~SuperShader()
 		SafeRelease(shader.layout);
 	}
 	SafeRelease(sampler_diffuse);
-	SafeRelease(vs_buffer);
+	SafeRelease(vs_globals);
+	SafeRelease(vs_locals);
 	SafeRelease(ps_globals);
+	SafeRelease(ps_locals);
 }
 
 //=================================================================================================
@@ -42,8 +44,10 @@ void SuperShader::Init()
 
 	sampler_diffuse = app::render->CreateSampler();
 
-	vs_buffer = app::render->CreateConstantBuffer(sizeof(VertexGlobals));
+	vs_globals = app::render->CreateConstantBuffer(sizeof(VertexGlobals));
+	vs_locals = app::render->CreateConstantBuffer(sizeof(VertexLocals));
 	ps_globals = app::render->CreateConstantBuffer(sizeof(PixelGlobals));
+	ps_locals = app::render->CreateConstantBuffer(sizeof(PixelLocals));
 }
 
 //=================================================================================================
@@ -77,20 +81,28 @@ void SuperShader::Prepare(Camera& camera)
 	app::render->SetAlphaBlend(false);
 	app::render->SetDepthState(Render::DEPTH_YES);
 
-	// set ps globals
+	// set vs globals
 	D3D11_MAPPED_SUBRESOURCE resource;
+	V(device_context->Map(vs_globals, 0, D3D11_MAP_WRITE_DISCARD, 0, &resource));
+	VertexGlobals& vs = *(VertexGlobals*)resource.pData;
+	vs.camera_pos = camera.from;
+	device_context->Unmap(vs_globals, 0);
+
+	// set ps globals
 	V(device_context->Map(ps_globals, 0, D3D11_MAP_WRITE_DISCARD, 0, &resource));
-	PixelGlobals& g = *(PixelGlobals*)resource.pData;
-	g.ambient_color = (Vec4)ambient_color;
-	g.light_color = (Vec4)light_color;
-	g.light_dir = light_dir;
-	g.fog_color = (Vec4)fog_color;
-	g.fog_params = Vec4(fog_range.x, fog_range.y, fog_range.y - fog_range.x, 0);
+	PixelGlobals& ps = *(PixelGlobals*)resource.pData;
+	ps.ambient_color = (Vec4)ambient_color;
+	ps.light_color = (Vec4)light_color;
+	ps.light_dir = light_dir;
+	ps.fog_color = (Vec4)fog_color;
+	ps.fog_params = Vec4(fog_range.x, fog_range.y, fog_range.y - fog_range.x, 0);
 	device_context->Unmap(ps_globals, 0);
 
 	device_context->PSSetSamplers(0, 1, &sampler_diffuse);
-	device_context->VSSetConstantBuffers(0, 1, &vs_buffer);
-	device_context->PSSetConstantBuffers(0, 1, &ps_globals);
+	ID3D11Buffer* vs_constants[] = { vs_globals, vs_locals };
+	device_context->VSSetConstantBuffers(0, 2, vs_constants);
+	ID3D11Buffer* ps_constants[] = { ps_globals, ps_locals };
+	device_context->PSSetConstantBuffers(0, 2, ps_constants);
 }
 
 //=================================================================================================
@@ -200,19 +212,19 @@ void SuperShader::Draw(SceneNode* node)
 	Matrix mat_world = Matrix::Rotation(node->rot) * Matrix::Translation(node->pos);
 	Matrix mat_combined = mat_world * mat_view_proj;
 
-	// set vs consts
+	// set vs locals
 	D3D11_MAPPED_SUBRESOURCE resource;
-	V(device_context->Map(vs_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &resource));
-	VertexGlobals& g = *(VertexGlobals*)resource.pData;
-	g.mat_combined = mat_combined.Transpose();
-	g.mat_world = mat_world.Transpose();
+	V(device_context->Map(vs_locals, 0, D3D11_MAP_WRITE_DISCARD, 0, &resource));
+	VertexLocals& vs = *(VertexLocals*)resource.pData;
+	vs.mat_combined = mat_combined.Transpose();
+	vs.mat_world = mat_world.Transpose();
 	if(node->mesh_inst)
 	{
 		node->mesh_inst->SetupBones();
 		for(int i = 0; i < node->mesh->head.n_bones; ++i)
-			g.mat_bones[i] = node->mesh_inst->mat_bones[i].Transpose();
+			vs.mat_bones[i] = node->mesh_inst->mat_bones[i].Transpose();
 	}
-	device_context->Unmap(vs_buffer, 0);
+	device_context->Unmap(vs_locals, 0);
 
 	// set buffers
 	Mesh* mesh = node->mesh;
@@ -224,6 +236,14 @@ void SuperShader::Draw(SceneNode* node)
 	// draw
 	for(Mesh::Submesh& sub : mesh->subs)
 	{
+		// set ps locals
+		V(device_context->Map(ps_locals, 0, D3D11_MAP_WRITE_DISCARD, 0, &resource));
+		PixelLocals& ps = *(PixelLocals*)resource.pData;
+		ps.specular_color = sub.specular_color;
+		ps.specular_hardness = (float)sub.specular_hardness;
+		ps.specular_intensity = sub.specular_intensity;
+		device_context->Unmap(ps_locals, 0);
+
 		device_context->PSSetShaderResources(0, 1, &sub.tex->tex);
 		device_context->DrawIndexed(sub.tris * 3, sub.first * 3, sub.min_ind);
 	}
