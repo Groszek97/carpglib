@@ -120,6 +120,7 @@ void Mesh::Load(StreamReader& stream)
 			const string& tex_name = stream.ReadString1();
 			if(!tex_name.empty())
 			{
+				head.flags |= F_NORMAL_MAP;
 				sub.tex_normal = app::res_mgr->LoadInstant<Texture>(tex_name);
 				stream.Read(sub.normal_factor);
 			}
@@ -133,6 +134,7 @@ void Mesh::Load(StreamReader& stream)
 		const string& tex_name_specular = stream.ReadString1();
 		if(!tex_name_specular.empty())
 		{
+			head.flags |= F_SPECULAR_MAP;
 			sub.tex_specular = app::res_mgr->LoadInstant<Texture>(tex_name_specular);
 			stream.Read(sub.specular_factor);
 			stream.Read(sub.specular_color_factor);

@@ -97,7 +97,16 @@ Font* Gui::GetFont(cstring name, int size, int weight, int outline)
 }
 
 //=================================================================================================
-// Draw text - rewritten from TFQ
+/* Draw text - rewritten from TFQ
+	zwraca false je¿eli by³ clipping od do³u (nie kontuuj tekstu w flow)
+	Znak $ oznacza jak¹œ specjaln¹ czynnoœæ (o ile jest ustawiona flaga DTF_PARSE_SPECIAL):
+		$$ - wstaw $
+		$c? - ustaw kolor (r-czerwony, g-zielony, y-¿ó³ty, b-czarny, w-bia³y, -przywróc domyœlny)
+		$h+ - informacja o hitboxie
+		$h- - koniec hitboxa
+		/$b - przerwa w tekœcie
+		/$n - nie przerywaj tekstu a¿ do nastêpnego takiego symbolu (np $njakiœ tekst$n - ten tekst nigdy nie zostanie rozdzielony pomiêdzy dwie linijki)
+*/
 bool Gui::DrawText(Font* font, Cstring str, uint flags, Color color, const Rect& rect, const Rect* clipping, vector<Hitbox>* hitboxes,
 	int* hitbox_counter, const vector<TextLine>* lines)
 {
@@ -902,7 +911,7 @@ void Gui::DrawItem(Texture* t, const Int2& item_pos, const Int2& item_size, Colo
 }
 
 //=================================================================================================
-void Gui::Update(float dt, float mouse_speed)
+void Gui::Update(float dt)
 {
 	PROFILER_BLOCK("UpdateGui");
 
@@ -910,9 +919,9 @@ void Gui::Update(float dt, float mouse_speed)
 	cursor_mode = CURSOR_NORMAL;
 	mouse_wheel = app::input->GetMouseWheel();
 	prev_cursor_pos = cursor_pos;
-	if(NeedCursor() && mouse_speed > 0)
+	if(NeedCursor())
 	{
-		cursor_pos += app::input->GetMouseDif() * mouse_speed;
+		cursor_pos += app::input->GetMouseDif();
 		if(cursor_pos.x < 0)
 			cursor_pos.x = 0;
 		if(cursor_pos.y < 0)

@@ -149,9 +149,6 @@
     <ClInclude Include="include\DialogBox.h">
       <Filter>gui dialogs</Filter>
     </ClInclude>
-    <ClInclude Include="include\ShaderHandler.h">
-      <Filter>shaders</Filter>
-    </ClInclude>
     <ClInclude Include="include\TerrainShader.h">
       <Filter>shaders</Filter>
     </ClInclude>
@@ -254,9 +251,6 @@
     </ClInclude>
     <ClInclude Include="include\AppEntry.h">
       <Filter>components</Filter>
-    </ClInclude>
-    <ClInclude Include="include\RenderTarget2.h">
-      <Filter>entity</Filter>
     </ClInclude>
     <ClInclude Include="include\WICTextureLoader.h">
       <Filter>loaders</Filter>
@@ -468,9 +462,6 @@
       <Filter>gui controls</Filter>
     </ClCompile>
     <ClCompile Include="source\Terrain.cpp">
-      <Filter>entity</Filter>
-    </ClCompile>
-    <ClCompile Include="source\RenderTarget.cpp">
       <Filter>entity</Filter>
     </ClCompile>
     <ClCompile Include="source\ParticleSystem.cpp">

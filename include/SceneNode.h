@@ -3,9 +3,25 @@
 //-----------------------------------------------------------------------------
 struct SceneNode : public ObjectPoolProxy<SceneNode>
 {
-	void OnFree();
+	enum Flags
+	{
+		HAVE_WEIGHT = 1 << 0,
+		HAVE_BINORMALS = 1 << 1,
+		ANIMATED = 1 << 2,
+		NORMAL_MAP = 1 << 3,
+		SPECULAR_MAP = 1 << 4,
+		TRANSPARENT = 1 << 5
+	};
 
-	Vec3 pos, rot;
+	void OnGet();
+	void OnFree();
+	void SetMesh(Mesh* mesh);
+	void SetMesh(MeshInstance* mesh_inst);
+	void ApplyMeshFlags();
+
+	Matrix mat;
+	Vec3 pos, rot, scale;
 	Mesh* mesh;
 	MeshInstance* mesh_inst;
+	int flags, tmp_flags;
 };

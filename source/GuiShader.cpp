@@ -45,7 +45,7 @@ void GuiShader::Init()
 	app::render->CreateShader("gui.hlsl", desc, countof(desc), vertex_shader, pixel_shader, layout);
 	vs_buffer = app::render->CreateConstantBuffer(sizeof(Vec2));
 	ps_buffer = app::render->CreateConstantBuffer(sizeof(bool));
-	sampler = app::render->CreateSampler(TEX_ADR_CLAMP);
+	sampler = app::render->CreateSampler(Render::TEX_ADR_CLAMP);
 
 	D3D11_BUFFER_DESC v_desc;
 	v_desc.Usage = D3D11_USAGE_DYNAMIC;

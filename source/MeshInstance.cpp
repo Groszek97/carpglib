@@ -15,7 +15,7 @@ MeshInstance::MeshInstance(Mesh* mesh, bool preload) : mesh(mesh), need_update(t
 {
 	if(!preload)
 	{
-		assert(mesh && mesh->IsLoaded());
+		assert(mesh && mesh->IsLoaded() && mesh->IsAnimated());
 
 		mat_bones.resize(mesh->head.n_bones);
 		blendb.resize(mesh->head.n_bones);
@@ -190,7 +190,7 @@ void MeshInstance::Update(float dt)
 //====================================================================================================
 // Ustawia koœci przed rysowaniem modelu
 //====================================================================================================
-void MeshInstance::SetupBones(Matrix* mat_scale)
+void MeshInstance::SetupBones()
 {
 	if(!need_update)
 		return;
@@ -324,13 +324,6 @@ void MeshInstance::SetupBones(Matrix* mat_scale)
 			BoneToModelPoseMat[i] = BoneToParentPoseMat[i];
 		else
 			BoneToModelPoseMat[i] = BoneToParentPoseMat[i] * BoneToModelPoseMat[bone.parent];
-	}
-
-	// przeskaluj koœci
-	if(mat_scale)
-	{
-		for(int i = 0; i < mesh->head.n_bones; ++i)
-			BoneToModelPoseMat[i] = BoneToModelPoseMat[i] * mat_scale[i];
 	}
 
 	// Macierze zebrane koœci - przekszta³caj¹ce z modelu do koœci w pozycji spoczynkowej * z koœci do modelu w pozycji bie¿¹cej
@@ -539,7 +532,7 @@ void MeshInstance::ClearBones()
 //=================================================================================================
 // Ustawia podan¹ animacje na koniec
 //=================================================================================================
-void MeshInstance::SetToEnd(Mesh::Animation* a, Matrix* mat_scale)
+void MeshInstance::SetToEnd(Mesh::Animation* a)
 {
 	assert(a);
 
@@ -564,11 +557,11 @@ void MeshInstance::SetToEnd(Mesh::Animation* a, Matrix* mat_scale)
 
 	need_update = true;
 
-	SetupBones(mat_scale);
+	SetupBones();
 }
 
 //=================================================================================================
-void MeshInstance::SetToEnd(Matrix* mat_scale)
+void MeshInstance::SetToEnd()
 {
 	groups[0].blend_time = 0.f;
 	groups[0].state = FLAG_GROUP_ACTIVE;
@@ -585,7 +578,7 @@ void MeshInstance::SetToEnd(Matrix* mat_scale)
 
 	need_update = true;
 
-	SetupBones(mat_scale);
+	SetupBones();
 }
 
 //=================================================================================================

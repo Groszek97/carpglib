@@ -1,6 +1,7 @@
 #include "EnginePch.h"
 #include "EngineCore.h"
 #include "Texture.h"
+#include "Render.h"
 #include "DirectX.h"
 
 //=================================================================================================
@@ -37,28 +38,36 @@ Int2 Texture::GetSize() const
 }
 
 //=================================================================================================
-/*TextureLock::TextureLock(TEX tex) : tex(tex)
+TextureLock::TextureLock(TEX tex) : tex(tex)
 {
 	assert(tex);
-	D3DLOCKED_RECT lock;
-	V(tex->LockRect(0, &lock, nullptr, 0));
-	data = static_cast<byte*>(lock.pBits);
-	pitch = lock.Pitch;
+
+	ID3D11Texture2D* res;
+	tex->GetResource(reinterpret_cast<ID3D11Resource**>(&res));
+
+	D3D11_MAPPED_SUBRESOURCE resource;
+	app::render->GetDeviceContext()->Map(res, 0, D3D11_MAP_WRITE_DISCARD, 0, &resource);
+	data = static_cast<byte*>(resource.pData);
+	pitch = resource.RowPitch;
 }
 
 //=================================================================================================
 TextureLock::~TextureLock()
 {
-	if(tex)
-		V(tex->UnlockRect(0));
+	if(res)
+	{
+		app::render->GetDeviceContext()->Unmap(res, 0);
+		res->Release();
+	}
 }
 
 //=================================================================================================
 void TextureLock::GenerateMipSubLevels()
 {
-	assert(tex);
-	V(tex->UnlockRect(0));
-	tex->GenerateMipSubLevels();
-	tex = nullptr;
-}*/
-FIXME;
+	assert(res);
+	ID3D11DeviceContext* device_context = app::render->GetDeviceContext();
+	device_context->Unmap(res, 0);
+	device_context->GenerateMips(tex);
+	res->Release();
+	res = nullptr;
+}

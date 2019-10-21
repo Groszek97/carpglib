@@ -32,6 +32,7 @@ class SuperShader
 
 	struct PixelGlobals
 	{
+		Vec4 ambient_color;
 		Vec4 fog_color;
 		Vec4 fog_params;
 	};
@@ -41,6 +42,7 @@ public:
 	~SuperShader();
 	uint GetShaderId(bool have_weight, bool have_binormals, bool animated, bool fog, bool specular, bool normal, bool point_light, bool dir_light) const;
 	void SetShader(uint id);
+	void SetAmbientColor(Color color) { ambient_color = color; }
 	void SetFog(Color color, const Vec2& range)
 	{
 		assert(range.x >= 0 && range.y >= range.x);
@@ -62,5 +64,5 @@ private:
 	vector<Shader> shaders;
 	Matrix mat_view_proj;
 	Vec2 fog_range;
-	Color fog_color;
+	Color fog_color, ambient_color;
 };

@@ -29,7 +29,7 @@ struct TexOverride
 };
 
 //-----------------------------------------------------------------------------
-/*struct TextureLock
+struct TextureLock
 {
 	TextureLock(TEX tex);
 	~TextureLock();
@@ -38,7 +38,7 @@ struct TexOverride
 
 private:
 	TEX tex;
+	ID3D11Texture2D* res;
 	byte* data;
 	int pitch;
-};*/
-FIXME;
+};

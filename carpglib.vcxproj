@@ -79,14 +79,12 @@
     <ClInclude Include="include\Profiler.h" />
     <ClInclude Include="include\QuadTree.h" />
     <ClInclude Include="include\Render.h" />
-    <ClInclude Include="include\RenderTarget2.h" />
     <ClInclude Include="include\Resource.h" />
     <ClInclude Include="include\ResourceManager.h" />
     <ClInclude Include="include\Scene.h" />
     <ClInclude Include="include\SceneManager.h" />
     <ClInclude Include="include\SceneNode.h" />
     <ClInclude Include="include\Scrollbar.h" />
-    <ClInclude Include="include\ShaderHandler.h" />
     <ClInclude Include="include\Slider.h" />
     <ClInclude Include="include\Sound.h" />
     <ClInclude Include="include\SoundManager.h" />
@@ -171,7 +169,6 @@
     <ClCompile Include="source\PickItemDialog.cpp" />
     <ClCompile Include="source\Profiler.cpp" />
     <ClCompile Include="source\Render.cpp" />
-    <ClCompile Include="source\RenderTarget.cpp" />
     <ClCompile Include="source\Resource.cpp" />
     <ClCompile Include="source\ResourceManager.cpp" />
     <ClCompile Include="source\Scene.cpp" />

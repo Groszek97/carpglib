@@ -64,7 +64,6 @@ enum GUI_DialogType
 
 //-----------------------------------------------------------------------------
 typedef delegate<void(int)> DialogEvent;
-typedef delegate<void(int, int)> DialogEvent2;
 
 //-----------------------------------------------------------------------------
 enum DialogOrder
@@ -72,6 +71,17 @@ enum DialogOrder
 	ORDER_NORMAL,
 	ORDER_TOP,
 	ORDER_TOPMOST
+};
+
+//-----------------------------------------------------------------------------
+struct TextLine
+{
+	uint begin, end;
+	int width;
+
+	TextLine(uint begin, uint end, int width) : begin(begin), end(end), width(width)
+	{
+	}
 };
 
 //-----------------------------------------------------------------------------
@@ -92,21 +102,34 @@ struct DialogInfo
 };
 
 //-----------------------------------------------------------------------------
+struct DrawTextOptions
+{
+	Font* font;
+	cstring str;
+	uint flags;
+	Color color;
+	Rect rect;
+	const Rect* clipping;
+	vector<Hitbox>* hitboxes;
+	int* hitbox_counter;
+	const vector<TextLine>* lines;
+	Vec2 scale;
+	uint lines_start;
+	uint lines_end;
+	uint str_length;
+
+	DrawTextOptions(Font* font, Cstring str) : font(font), str(str), rect(Rect::Zero), flags(DTF_LEFT), color(Color::Black),
+		clipping(nullptr), hitboxes(nullptr), hitbox_counter(nullptr), lines(nullptr), scale(Vec2::One), lines_start(0), lines_end(UINT_MAX),
+		str_length(strlen(str))
+	{
+	}
+};
+
+//-----------------------------------------------------------------------------
 class OnCharHandler
 {
 public:
 	virtual void OnChar(char c) {}
-};
-
-//-----------------------------------------------------------------------------
-struct TextLine
-{
-	uint begin, end;
-	int width;
-
-	TextLine(uint begin, uint end, int width) : begin(begin), end(end), width(width)
-	{
-	}
 };
 
 //-----------------------------------------------------------------------------
@@ -125,90 +148,63 @@ public:
 	void Init();
 	void SetText(cstring ok, cstring yes, cstring no, cstring cancel);
 	void Draw();
+	void Update(float dt);
+	void OnResize();
+	void OnChar(char c);
+	void Add(Control* ctrl);
 	bool AddFont(cstring filename);
 	Font* GetFont(cstring name, int size, int weight = 4, int outline = 0);
-	/* zaawansowane renderowanie tekstu (w porównaniu do ID3DXFont)
-	zwraca false je¿eli by³ clipping od do³u (nie kontuuj tekstu w flow)
-	Znak $ oznacza jak¹œ specjaln¹ czynnoœæ (o ile jest ustawiona flaga DTF_PARSE_SPECIAL):
-		$$ - wstaw $
-		$c? - ustaw kolor (r-czerwony, g-zielony, y-¿ó³ty, b-czarny, w-bia³y, -przywróc domyœlny)
-		$h+ - informacja o hitboxie
-		$h- - koniec hitboxa
-		/$b - przerwa w tekœcie
-		/$n - nie przerywaj tekstu a¿ do nastêpnego takiego symbolu (np $njakiœ tekst$n - ten tekst nigdy nie zostanie rozdzielony pomiêdzy dwie linijki)
-	*/
-	bool DrawText(Font* font, Cstring str, uint flags, Color color, const Rect& rect, const Rect* clipping = nullptr,
-		vector<Hitbox>* hitboxes = nullptr, int* hitbox_counter = nullptr, const vector<TextLine>* lines = nullptr);
-	void Add(Control* ctrl);
-	void DrawItem(Texture* t, const Int2& item_pos, const Int2& item_size, Color color, int corner = 16, int size = 64, const Box2d* clip_rect = nullptr);
-	void Update(float dt, float mouse_speed);
-	void DrawSprite(Texture* t, const Int2& pos, Color color = Color::White, const Rect* clipping = nullptr);
-	void OnChar(char c);
-	DialogBox* ShowDialog(const DialogInfo& info);
-	void ShowDialog(DialogBox* dialog);
-	bool CloseDialog(DialogBox* d);
-	void CloseDialogInternal(DialogBox* d);
-	bool HaveTopDialog(cstring name) const;
-	bool HaveDialog() const;
-	void DrawSpriteFull(Texture* t, Color color);
 	void AddOnCharHandler(OnCharHandler* h) { on_char.push_back(h); }
 	void RemoveOnCharHandler(OnCharHandler* h) { RemoveElement(on_char, h); }
-	void SimpleDialog(cstring text, Control* parent, cstring name = "simple");
-	void DrawSpriteRect(Texture* t, const Rect& rect, Color color = Color::White);
+
+	bool AnythingVisible() const;
+	bool MouseMoved() const { return cursor_pos != prev_cursor_pos; }
+	bool NeedCursor();
+	cstring GetClipboard();
+	Layout* GetLayout() const { return master_layout; }
+	Overlay* GetOverlay() const { return overlay; }
+	void SetClipboard(cstring text);
+	void SetLayout(Layout* layout);
+	void SetOutlineColor(Color color) { outline_color = color; }
+	void SetOverlay(Overlay* overlay) { this->overlay = overlay; }
+	bool To2dPoint(const Vec3& pos, Int2& pt);
+	Rect GetSpriteRect(Texture* t, const Matrix& mat, const Rect* part = nullptr, const Rect* clipping = nullptr);
+	static bool Intersect(vector<Hitbox>& hitboxes, const Int2& pt, int* index, int* index2 = nullptr);
+
+	// dialogs
+	bool HaveTopDialog(cstring name) const;
+	bool HavePauseDialog() const;
+	bool HaveDialog() const;
 	bool HaveDialog(cstring name);
 	bool HaveDialog(DialogBox* dialog);
-	bool AnythingVisible() const;
-	void OnResize();
-	void DrawSpriteRectPart(Texture* t, const Rect& rect, const Rect& part, Color color = Color::White);
-	void DrawSpriteTransform(Texture* t, const Matrix& mat, Color color = Color::White);
-	bool NeedCursor();
-	bool DrawText3D(Font* font, Cstring text, uint flags, Color color, const Vec3& pos, Rect* text_rect = nullptr);
-	bool To2dPoint(const Vec3& pos, Int2& pt);
-	static bool Intersect(vector<Hitbox>& hitboxes, const Int2& pt, int* index, int* index2 = nullptr);
-	void DrawSpriteTransformPart(Texture* t, const Matrix& mat, const Rect& part, Color color = Color::White);
-	void CloseDialogs();
-	bool HavePauseDialog() const;
 	DialogBox* GetDialog(cstring name);
-	void DrawSprite2(Texture* t, const Matrix& mat, const Rect* part = nullptr, const Rect* clipping = nullptr, Color color = Color::White);
+	DialogBox* ShowDialog(const DialogInfo& info);
+	void ShowDialog(DialogBox* dialog);
+	void SimpleDialog(cstring text, Control* parent, cstring name = "simple");
+	void CloseDialogs();
+	bool CloseDialog(DialogBox* d);
+	void CloseDialogInternal(DialogBox* d);
+
+	// drawing
 	void DrawArea(Color color, const Int2& pos, const Int2& size, const Box2d* clip_rect = nullptr);
 	void DrawArea(Color color, const Rect& rect, const Box2d* clip_rect = nullptr)
 	{
 		DrawArea(color, rect.LeftTop(), rect.Size(), clip_rect);
 	}
-	void SetLayout(Layout* layout);
-	Layout* GetLayout() const { return master_layout; }
 	void DrawArea(const Box2d& rect, const AreaLayout& area_layout, const Box2d* clip_rect = nullptr, Color* tint = nullptr);
-	void SetOverlay(Overlay* overlay) { this->overlay = overlay; }
-	Overlay* GetOverlay() const { return overlay; }
-	bool MouseMoved() const { return cursor_pos != prev_cursor_pos; }
-	void SetClipboard(cstring text);
-	cstring GetClipboard();
-	Rect GetSpriteRect(Texture* t, const Matrix& mat, const Rect* part = nullptr, const Rect* clipping = nullptr);
-	void UseGrayscale(bool grayscale);
-	struct DrawTextOptions
-	{
-		Font* font;
-		cstring str;
-		uint flags;
-		Color color;
-		Rect rect;
-		const Rect* clipping;
-		vector<Hitbox>* hitboxes;
-		int* hitbox_counter;
-		const vector<TextLine>* lines;
-		Vec2 scale;
-		uint lines_start;
-		uint lines_end;
-		uint str_length;
-
-		DrawTextOptions(Font* font, Cstring str) : font(font), str(str), rect(Rect::Zero), flags(DTF_LEFT), color(Color::Black),
-			clipping(nullptr), hitboxes(nullptr), hitbox_counter(nullptr), lines(nullptr), scale(Vec2::One), lines_start(0), lines_end(UINT_MAX),
-			str_length(strlen(str))
-		{
-		}
-	};
+	bool DrawText(Font* font, Cstring str, uint flags, Color color, const Rect& rect, const Rect* clipping = nullptr,
+		vector<Hitbox>* hitboxes = nullptr, int* hitbox_counter = nullptr, const vector<TextLine>* lines = nullptr);
 	bool DrawText2(DrawTextOptions& options);
-	void SetOutlineColor(Color color) { outline_color = color; }
+	bool DrawText3D(Font* font, Cstring text, uint flags, Color color, const Vec3& pos, Rect* text_rect = nullptr);
+	void DrawItem(Texture* t, const Int2& item_pos, const Int2& item_size, Color color, int corner = 16, int size = 64, const Box2d* clip_rect = nullptr);
+	void DrawSprite(Texture* t, const Int2& pos, Color color = Color::White, const Rect* clipping = nullptr);
+	void DrawSpriteFull(Texture* t, Color color);
+	void DrawSpriteRect(Texture* t, const Rect& rect, Color color = Color::White);
+	void DrawSpriteRectPart(Texture* t, const Rect& rect, const Rect& part, Color color = Color::White);
+	void DrawSpriteTransform(Texture* t, const Matrix& mat, Color color = Color::White);
+	void DrawSprite2(Texture* t, const Matrix& mat, const Rect* part = nullptr, const Rect* clipping = nullptr, Color color = Color::White);
+	void DrawSpriteTransformPart(Texture* t, const Matrix& mat, const Rect& part, Color color = Color::White);
+	void UseGrayscale(bool grayscale);
 
 	Matrix mViewProj;
 	Int2 cursor_pos, prev_cursor_pos, wnd_size;
