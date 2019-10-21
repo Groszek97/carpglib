@@ -45,9 +45,15 @@ void SceneManager::Draw()
 		shader->SetFog(scene->fog_color, scene->fog_range);
 
 	if(lighting_enabled)
+	{
 		shader->SetAmbientColor(scene->ambient_color);
+		shader->SetDirectionLight(scene->light_color, scene->light_dir);
+	}
 	else
+	{
 		shader->SetAmbientColor(Color::White);
+		shader->SetDirectionLight(Color::None, Vec3(0, 1, 0));
+	}
 
 	for(SceneNodeGroup& group : groups)
 	{

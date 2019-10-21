@@ -8,6 +8,8 @@ cbuffer vs_globals : register(b0)
 cbuffer ps_globals : register(b0)
 {
 	float4 ambient_color;
+	float4 light_color;
+	float3 light_dir;
 	float4 fog_color;
 	float4 fog_params;
 };
@@ -72,7 +74,9 @@ VS_OUTPUT vs_main(VS_INPUT In)
 float4 ps_main(VS_OUTPUT In) : SV_TARGET
 {
 	float4 tex = tex_diffuse.Sample(sampler_diffuse, In.tex);
-	tex.xyz = tex.xyz * ambient_color.xyz;
+	
+	float3 color = saturate(ambient_color.xyz + light_color.xyz * saturate(dot(light_dir, In.normal)));
+	tex.xyz = tex.xyz * color;
 	
 #ifdef FOG
 	float fog = saturate((In.pos_view_z - fog_params.x) / fog_params.z);

@@ -82,6 +82,8 @@ void SuperShader::Prepare(Camera& camera)
 	V(device_context->Map(ps_globals, 0, D3D11_MAP_WRITE_DISCARD, 0, &resource));
 	PixelGlobals& g = *(PixelGlobals*)resource.pData;
 	g.ambient_color = (Vec4)ambient_color;
+	g.light_color = (Vec4)light_color;
+	g.light_dir = light_dir;
 	g.fog_color = (Vec4)fog_color;
 	g.fog_params = Vec4(fog_range.x, fog_range.y, fog_range.y - fog_range.x, 0);
 	device_context->Unmap(ps_globals, 0);

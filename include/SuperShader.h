@@ -33,6 +33,9 @@ class SuperShader
 	struct PixelGlobals
 	{
 		Vec4 ambient_color;
+		Vec4 light_color;
+		Vec3 light_dir;
+		float _pad;
 		Vec4 fog_color;
 		Vec4 fog_params;
 	};
@@ -43,6 +46,11 @@ public:
 	uint GetShaderId(bool have_weight, bool have_binormals, bool animated, bool fog, bool specular, bool normal, bool point_light, bool dir_light) const;
 	void SetShader(uint id);
 	void SetAmbientColor(Color color) { ambient_color = color; }
+	void SetDirectionLight(Color color, const Vec3& dir)
+	{
+		light_color = color;
+		light_dir = dir;
+	}
 	void SetFog(Color color, const Vec2& range)
 	{
 		assert(range.x >= 0 && range.y >= range.x);
@@ -63,6 +71,7 @@ private:
 	ID3D11Buffer* ps_globals;
 	vector<Shader> shaders;
 	Matrix mat_view_proj;
+	Vec3 light_dir;
 	Vec2 fog_range;
-	Color fog_color, ambient_color;
+	Color fog_color, ambient_color, light_color;
 };
