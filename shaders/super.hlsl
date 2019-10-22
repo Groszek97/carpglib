@@ -21,6 +21,7 @@ cbuffer ps_globals : register(b0)
 
 cbuffer ps_locals : register(b1)
 {
+	float4 tint;
 	float3 specular_color;
 	float specular_hardness;
 	float specular_intensity;
@@ -90,7 +91,7 @@ VS_OUTPUT vs_main(VS_INPUT In)
 
 float4 ps_main(VS_OUTPUT In) : SV_TARGET
 {
-	float4 tex = tex_diffuse.Sample(sampler_diffuse, In.tex);
+	float4 tex = tex_diffuse.Sample(sampler_diffuse, In.tex) * tint;
 	
 	float4 color = ambient_color;
 	float specular = 0;

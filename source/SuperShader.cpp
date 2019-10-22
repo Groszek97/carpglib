@@ -239,6 +239,7 @@ void SuperShader::Draw(SceneNode* node)
 		// set ps locals
 		V(device_context->Map(ps_locals, 0, D3D11_MAP_WRITE_DISCARD, 0, &resource));
 		PixelLocals& ps = *(PixelLocals*)resource.pData;
+		ps.tint = node->tint;
 		ps.specular_color = sub.specular_color;
 		ps.specular_hardness = (float)sub.specular_hardness;
 		ps.specular_intensity = sub.specular_intensity;

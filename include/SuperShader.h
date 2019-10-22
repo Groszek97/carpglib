@@ -47,6 +47,7 @@ class SuperShader
 
 	struct PixelLocals
 	{
+		Vec4 tint;
 		Vec3 specular_color;
 		float specular_hardness;
 		float specular_intensity;
