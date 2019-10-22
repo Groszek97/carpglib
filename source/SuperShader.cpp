@@ -9,7 +9,7 @@
 #include <d3dcompiler.h>
 
 //=================================================================================================
-SuperShader::SuperShader() : sampler_diffuse(nullptr), vs_globals(nullptr), vs_locals(nullptr), ps_globals(nullptr), ps_locals(nullptr)
+SuperShader::SuperShader() : sampler_diffuse(nullptr), vs_globals(nullptr), vs_locals(nullptr), ps_globals(nullptr), ps_locals(nullptr), ps_material(nullptr)
 {
 	try
 	{
@@ -35,6 +35,7 @@ SuperShader::~SuperShader()
 	SafeRelease(vs_locals);
 	SafeRelease(ps_globals);
 	SafeRelease(ps_locals);
+	SafeRelease(ps_material);
 }
 
 //=================================================================================================
@@ -48,6 +49,7 @@ void SuperShader::Init()
 	vs_locals = app::render->CreateConstantBuffer(sizeof(VertexLocals));
 	ps_globals = app::render->CreateConstantBuffer(sizeof(PixelGlobals));
 	ps_locals = app::render->CreateConstantBuffer(sizeof(PixelLocals));
+	ps_material = app::render->CreateConstantBuffer(sizeof(PixelMaterial));
 }
 
 //=================================================================================================
@@ -101,8 +103,8 @@ void SuperShader::Prepare(Camera& camera)
 	device_context->PSSetSamplers(0, 1, &sampler_diffuse);
 	ID3D11Buffer* vs_constants[] = { vs_globals, vs_locals };
 	device_context->VSSetConstantBuffers(0, 2, vs_constants);
-	ID3D11Buffer* ps_constants[] = { ps_globals, ps_locals };
-	device_context->PSSetConstantBuffers(0, 2, ps_constants);
+	ID3D11Buffer* ps_constants[] = { ps_globals, ps_locals, ps_material };
+	device_context->PSSetConstantBuffers(0, 3, ps_constants);
 }
 
 //=================================================================================================
@@ -113,6 +115,8 @@ void SuperShader::SetShader(uint id)
 	device_context->IASetInputLayout(shader.layout);
 	device_context->VSSetShader(shader.vertex_shader, nullptr, 0);
 	device_context->PSSetShader(shader.pixel_shader, nullptr, 0);
+
+	set_lights = IsSet(id, 1 << POINT_LIGHT);
 }
 
 //=================================================================================================
@@ -226,6 +230,30 @@ void SuperShader::Draw(SceneNode* node)
 	}
 	device_context->Unmap(vs_locals, 0);
 
+	// set ps locals
+	V(device_context->Map(ps_locals, 0, D3D11_MAP_WRITE_DISCARD, 0, &resource));
+	PixelLocals& ps = *(PixelLocals*)resource.pData;
+	ps.tint = node->tint;
+	if(set_lights)
+	{
+		int i = 0;
+		for(SceneNode* light : node->lights)
+		{
+			ps.lights[i].color = light->tint;
+			ps.lights[i].pos = light->pos;
+			ps.lights[i].range = light->scale.x;
+			++i;
+		}
+		while(i < 3)
+		{
+			ps.lights[i].color = Vec4(0, 0, 0, 1);
+			ps.lights[i].pos = Vec3::Zero;
+			ps.lights[i].range = 1;
+			++i;
+		}
+	}
+	device_context->Unmap(ps_locals, 0);
+
 	// set buffers
 	Mesh* mesh = node->mesh;
 	uint stride = mesh->vertex_size,
@@ -233,19 +261,20 @@ void SuperShader::Draw(SceneNode* node)
 	device_context->IASetVertexBuffers(0, 1, &mesh->vb, &stride, &offset);
 	device_context->IASetIndexBuffer(mesh->ib, DXGI_FORMAT_R16_UINT, 0);
 
-	// draw
 	for(Mesh::Submesh& sub : mesh->subs)
 	{
-		// set ps locals
-		V(device_context->Map(ps_locals, 0, D3D11_MAP_WRITE_DISCARD, 0, &resource));
-		PixelLocals& ps = *(PixelLocals*)resource.pData;
-		ps.tint = node->tint;
+		// set ps material
+		V(device_context->Map(ps_material, 0, D3D11_MAP_WRITE_DISCARD, 0, &resource));
+		PixelMaterial& ps = *(PixelMaterial*)resource.pData;
 		ps.specular_color = sub.specular_color;
 		ps.specular_hardness = (float)sub.specular_hardness;
 		ps.specular_intensity = sub.specular_intensity;
-		device_context->Unmap(ps_locals, 0);
+		device_context->Unmap(ps_material, 0);
 
+		// set texture
 		device_context->PSSetShaderResources(0, 1, &sub.tex->tex);
+
+		// draw submesh
 		device_context->DrawIndexed(sub.tris * 3, sub.first * 3, sub.min_ind);
 	}
 }

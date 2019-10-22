@@ -45,9 +45,21 @@ class SuperShader
 		Vec4 fog_params;
 	};
 
+	struct Light
+	{
+		Vec4 color;
+		Vec3 pos;
+		float range;
+	};
+
 	struct PixelLocals
 	{
 		Vec4 tint;
+		Light lights[3];
+	};
+
+	struct PixelMaterial
+	{
 		Vec3 specular_color;
 		float specular_hardness;
 		float specular_intensity;
@@ -84,9 +96,11 @@ private:
 	ID3D11Buffer* vs_locals;
 	ID3D11Buffer* ps_globals;
 	ID3D11Buffer* ps_locals;
+	ID3D11Buffer* ps_material;
 	vector<Shader> shaders;
 	Matrix mat_view_proj;
 	Vec3 light_dir;
 	Vec2 fog_range;
 	Color fog_color, ambient_color, light_color;
+	bool set_lights;
 };

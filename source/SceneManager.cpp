@@ -34,44 +34,48 @@ void SceneManager::Draw()
 	if(!scene || !camera)
 		return;
 
-	shader->Prepare(*camera);
-
-	visible_nodes.clear();
-	scene->ListNodes(*camera, visible_nodes);
-	ProcessNodes();
-
 	const bool use_fog = (fog_enabled && scene->use_fog);
 	if(use_fog)
 		shader->SetFog(scene->fog_color, scene->fog_range);
 
-	if(lighting_enabled)
+	bool use_dir_light, use_point_light;
+	if(lighting_enabled && (scene->use_dir_light || scene->use_point_light))
 	{
 		shader->SetAmbientColor(scene->ambient_color);
-		shader->SetDirectionLight(scene->light_color, scene->light_dir);
+		if(scene->use_dir_light)
+		{
+			shader->SetDirectionLight(scene->light_color, scene->light_dir);
+			use_dir_light = true;
+			use_point_light = false;
+		}
+		else
+		{
+			use_dir_light = false;
+			use_point_light = true;
+		}
 	}
 	else
 	{
 		shader->SetAmbientColor(Color::White);
-		shader->SetDirectionLight(Color::None, Vec3(0, 1, 0));
+		use_dir_light = false;
+		use_point_light = false;
 	}
+
+	shader->Prepare(*camera);
+
+	visible_nodes.clear();
+	scene->ListNodes(*camera, visible_nodes, use_point_light);
+	ProcessNodes();
 
 	for(SceneNodeGroup& group : groups)
 	{
 		uint id = shader->GetShaderId(IsSet(group.flags, SceneNode::HAVE_WEIGHT),
 			IsSet(group.flags, SceneNode::HAVE_BINORMALS),
-			IsSet(group.flags, SceneNode::ANIMATED), use_fog, false, false, false, false);
+			IsSet(group.flags, SceneNode::ANIMATED), use_fog, false, false, use_point_light, use_dir_light);
 		shader->SetShader(id);
 
 		for(auto it = visible_nodes.begin() + group.start, end = visible_nodes.begin() + group.end + 1; it != end; ++it)
 			shader->Draw(*it);
-	}
-
-	for(SceneNode* node : visible_nodes)
-	{
-		uint id = shader->GetShaderId(IsSet(node->mesh->head.flags, Mesh::F_ANIMATED), IsSet(node->mesh->head.flags, Mesh::F_TANGENTS),
-			node->mesh_inst != nullptr, use_fog, false, false, false, false);
-		shader->SetShader(id);
-		shader->Draw(node);
 	}
 }
 
@@ -83,7 +87,7 @@ void SceneManager::ProcessNodes()
 	if(visible_nodes.empty())
 		return;
 
-	int flag_filter = SceneNode::ANIMATED | SceneNode::HAVE_BINORMALS /*| SceneNode::TRANSPARENT*/;
+	int flag_filter = SceneNode::HAVE_WEIGHT | SceneNode::HAVE_BINORMALS | SceneNode::ANIMATED /*| SceneNode::TRANSPARENT*/;
 	/*if(use_normal_map)
 		flag_filter |= SceneNode::NORMAL_MAP;
 	if(use_specular_map)
@@ -109,6 +113,20 @@ void SceneManager::ProcessNodes()
 			else
 				return node1->mesh > node2->mesh;
 		});
+
+	int prev_flags = -1, index = 0;
+	for(SceneNode* node : visible_nodes)
+	{
+		if(node->tmp_flags != prev_flags)
+		{
+			if(!groups.empty())
+				groups.back().end = index - 1;
+			groups.push_back({ node->tmp_flags, index, 0 });
+			prev_flags = node->tmp_flags;
+		}
+		++index;
+	}
+	groups.back().end = index - 1;
 }
 
 //=================================================================================================

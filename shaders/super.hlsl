@@ -19,13 +19,25 @@ cbuffer ps_globals : register(b0)
 	float4 fog_params;
 };
 
+struct Light
+{
+	float3 color;
+	float3 pos;
+	float range;
+};
+
 cbuffer ps_locals : register(b1)
 {
 	float4 tint;
+	Light lights[3];
+};
+
+cbuffer ps_material : register(b2)
+{
 	float3 specular_color;
 	float specular_hardness;
 	float specular_intensity;
-}
+};
 
 Texture2D tex_diffuse;
 SamplerState sampler_diffuse;
@@ -47,8 +59,11 @@ struct VS_OUTPUT
 	float2 tex : TEXCOORD0;
 	float3 normal : TEXCOORD1;
 	float3 view_dir : TEXCOORD2;
+#ifdef POINT_LIGHT
+	float3 pos_world : TEXCOORD3;
+#endif
 #ifdef FOG
-	float pos_view_z : TEXCOORD3;
+	float pos_view_z : TEXCOORD4;
 #endif
 };
 
@@ -81,6 +96,10 @@ VS_OUTPUT vs_main(VS_INPUT In)
 	// direction from camera to vertex for specular calculations
 	Out.view_dir = normalize(camera_pos - mul(float4(pos,1), mat_world).xyz);
 	
+#ifdef POINT_LIGHT
+	Out.pos_world = mul(float4(pos,1), mat_world).xyz;
+#endif
+	
 	// distance for fog
 #ifdef FOG
 	Out.pos_view_z = Out.pos.w;
@@ -94,8 +113,9 @@ float4 ps_main(VS_OUTPUT In) : SV_TARGET
 	float4 tex = tex_diffuse.Sample(sampler_diffuse, In.tex) * tint;
 	
 	float4 color = ambient_color;
-	float specular = 0;
 	
+#ifdef DIR_LIGHT
+	float specular = 0;
 	float light_intensity = saturate(dot(In.normal, light_dir));
 	if(light_intensity > 0.f)
 	{
@@ -104,8 +124,25 @@ float4 ps_main(VS_OUTPUT In) : SV_TARGET
 		float3 reflection = normalize(2 * light_intensity * In.normal - light_dir);
 		specular = pow(saturate(dot(reflection, In.view_dir)), specular_hardness) * specular_intensity;
 	}
-	
 	tex.xyz = saturate((tex.xyz * color.xyz) + specular_color * specular);
+#elif defined(POINT_LIGHT)
+	float specular = 0;
+	for(int i=0; i<3; ++i)
+	{
+		float3 light_vec = normalize(lights[i].pos - In.pos_world);
+		float dist = distance(lights[i].pos, In.pos_world);
+		float falloff = clamp((1 - (dist / lights[i].range)), 0, 1);
+		float light_intensity = clamp(dot(light_vec, In.normal),0,1) * falloff;
+		if(light_intensity > 0)
+		{
+			color.xyz += light_intensity * lights[i].color;
+			float3 reflection = normalize(2 * light_intensity * In.normal - light_vec);
+			specular += pow(saturate(dot(reflection, normalize(In.view_dir))), specular_hardness) * specular_intensity * falloff;
+		}
+	}
+	specular = saturate(specular);
+	tex.xyz = saturate((tex.xyz * saturate(color.xyz)) + specular_color * specular);
+#endif
 	
 #ifdef FOG
 	float fog = saturate((In.pos_view_z - fog_params.x) / fog_params.z);
