@@ -15,7 +15,7 @@ public:
 	void SetActive(Scene* scene) { this->scene = scene; }
 	void SetActive(Camera* camera) { this->camera = camera; }
 
-	bool fog_enabled, lighting_enabled;
+	bool fog_enabled, lighting_enabled, normal_map_enabled, specular_map_enabled;
 
 private:
 	struct SceneNodeGroup

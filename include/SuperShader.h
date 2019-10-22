@@ -9,8 +9,8 @@ class SuperShader
 		HAVE_BINORMALS,
 		ANIMATED,
 		FOG,
-		SPECULAR,
-		NORMAL,
+		SPECULAR_MAP,
+		NORMAL_MAP,
 		POINT_LIGHT,
 		DIR_LIGHT
 	};
@@ -92,15 +92,17 @@ private:
 
 	ID3D11DeviceContext* device_context;
 	ID3D11SamplerState* sampler_diffuse;
+	ID3D11SamplerState* sampler_normal;
 	ID3D11Buffer* vs_globals;
 	ID3D11Buffer* vs_locals;
 	ID3D11Buffer* ps_globals;
 	ID3D11Buffer* ps_locals;
 	ID3D11Buffer* ps_material;
+	TEX tex_normal;
 	vector<Shader> shaders;
 	Matrix mat_view_proj;
 	Vec3 light_dir;
 	Vec2 fog_range;
 	Color fog_color, ambient_color, light_color;
-	bool set_lights;
+	bool set_lights, set_normal_map;
 };

@@ -9,7 +9,8 @@
 #include <d3dcompiler.h>
 
 //=================================================================================================
-SuperShader::SuperShader() : sampler_diffuse(nullptr), vs_globals(nullptr), vs_locals(nullptr), ps_globals(nullptr), ps_locals(nullptr), ps_material(nullptr)
+SuperShader::SuperShader() : sampler_diffuse(nullptr), sampler_normal(nullptr), vs_globals(nullptr), vs_locals(nullptr), ps_globals(nullptr),
+ps_locals(nullptr), ps_material(nullptr), tex_normal(nullptr)
 {
 	try
 	{
@@ -31,11 +32,13 @@ SuperShader::~SuperShader()
 		SafeRelease(shader.layout);
 	}
 	SafeRelease(sampler_diffuse);
+	SafeRelease(sampler_normal);
 	SafeRelease(vs_globals);
 	SafeRelease(vs_locals);
 	SafeRelease(ps_globals);
 	SafeRelease(ps_locals);
 	SafeRelease(ps_material);
+	SafeRelease(tex_normal);
 }
 
 //=================================================================================================
@@ -44,6 +47,8 @@ void SuperShader::Init()
 	device_context = app::render->GetDeviceContext();
 
 	sampler_diffuse = app::render->CreateSampler();
+	sampler_normal = app::render->CreateSampler();
+	tex_normal = app::render->CreateTexture(Int2(1, 1), &Color(128, 128, 255));
 
 	vs_globals = app::render->CreateConstantBuffer(sizeof(VertexGlobals));
 	vs_locals = app::render->CreateConstantBuffer(sizeof(VertexLocals));
@@ -65,9 +70,9 @@ uint SuperShader::GetShaderId(bool have_weight, bool have_binormals, bool animat
 	if(fog)
 		id |= (1 << FOG);
 	if(specular)
-		id |= (1 << SPECULAR);
+		id |= (1 << SPECULAR_MAP);
 	if(normal)
-		id |= (1 << NORMAL);
+		id |= (1 << NORMAL_MAP);
 	if(point_light)
 		id |= (1 << POINT_LIGHT);
 	if(dir_light)
@@ -117,6 +122,10 @@ void SuperShader::SetShader(uint id)
 	device_context->PSSetShader(shader.pixel_shader, nullptr, 0);
 
 	set_lights = IsSet(id, 1 << POINT_LIGHT);
+	set_normal_map = IsSet(id, 1 << NORMAL_MAP);
+
+	if(set_normal_map)
+		device_context->PSSetSamplers(1, 1, &sampler_normal);
 }
 
 //=================================================================================================
@@ -146,6 +155,11 @@ SuperShader::Shader& SuperShader::CompileShader(uint id)
 	}
 	layout_desc.push_back({ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 });
 	layout_desc.push_back({ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 });
+	if(IsSet(id, 1 << HAVE_BINORMALS))
+	{
+		layout_desc.push_back({ "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 });
+		layout_desc.push_back({ "BINORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 });
+	}
 
 	// setup macros
 	D3D_SHADER_MACRO macros[8] = {};
@@ -175,13 +189,13 @@ SuperShader::Shader& SuperShader::CompileShader(uint id)
 		macros[i].Definition = "1";
 		++i;
 	}
-	if(IsSet(id, 1 << SPECULAR))
+	if(IsSet(id, 1 << SPECULAR_MAP))
 	{
 		macros[i].Name = "SPECULAR_MAP";
 		macros[i].Definition = "1";
 		++i;
 	}
-	if(IsSet(id, 1 << NORMAL))
+	if(IsSet(id, 1 << NORMAL_MAP))
 	{
 		macros[i].Name = "NORMAL_MAP";
 		macros[i].Definition = "1";
@@ -273,6 +287,8 @@ void SuperShader::Draw(SceneNode* node)
 
 		// set texture
 		device_context->PSSetShaderResources(0, 1, &sub.tex->tex);
+		if(set_normal_map)
+			device_context->PSSetShaderResources(1, 1, sub.tex_normal ? &sub.tex_normal->tex : &tex_normal);
 
 		// draw submesh
 		device_context->DrawIndexed(sub.tris * 3, sub.first * 3, sub.min_ind);

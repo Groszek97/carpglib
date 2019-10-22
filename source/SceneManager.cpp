@@ -10,7 +10,8 @@
 SceneManager* app::scene_mgr;
 
 //=================================================================================================
-SceneManager::SceneManager() : scene(nullptr), camera(nullptr), shader(nullptr), fog_enabled(true), lighting_enabled(true)
+SceneManager::SceneManager() : scene(nullptr), camera(nullptr), shader(nullptr), fog_enabled(true), lighting_enabled(true), normal_map_enabled(true),
+specular_map_enabled(true)
 {
 }
 
@@ -71,7 +72,12 @@ void SceneManager::Draw()
 	{
 		uint id = shader->GetShaderId(IsSet(group.flags, SceneNode::HAVE_WEIGHT),
 			IsSet(group.flags, SceneNode::HAVE_BINORMALS),
-			IsSet(group.flags, SceneNode::ANIMATED), use_fog, false, false, use_point_light, use_dir_light);
+			IsSet(group.flags, SceneNode::ANIMATED),
+			use_fog,
+			IsSet(group.flags, SceneNode::SPECULAR_MAP),
+			IsSet(group.flags, SceneNode::NORMAL_MAP),
+			use_point_light,
+			use_dir_light);
 		shader->SetShader(id);
 
 		for(auto it = visible_nodes.begin() + group.start, end = visible_nodes.begin() + group.end + 1; it != end; ++it)
@@ -88,9 +94,9 @@ void SceneManager::ProcessNodes()
 		return;
 
 	int flag_filter = SceneNode::HAVE_WEIGHT | SceneNode::HAVE_BINORMALS | SceneNode::ANIMATED /*| SceneNode::TRANSPARENT*/;
-	/*if(use_normal_map)
+	if(normal_map_enabled)
 		flag_filter |= SceneNode::NORMAL_MAP;
-	if(use_specular_map)
+	/*if(use_specular_map)
 		flag_filter |= SceneNode::SPECULAR_MAP;*/
 
 	for(SceneNode* node : visible_nodes)
