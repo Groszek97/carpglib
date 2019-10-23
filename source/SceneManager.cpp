@@ -96,8 +96,8 @@ void SceneManager::ProcessNodes()
 	int flag_filter = SceneNode::HAVE_WEIGHT | SceneNode::HAVE_BINORMALS | SceneNode::ANIMATED /*| SceneNode::TRANSPARENT*/;
 	if(normal_map_enabled)
 		flag_filter |= SceneNode::NORMAL_MAP;
-	/*if(use_specular_map)
-		flag_filter |= SceneNode::SPECULAR_MAP;*/
+	if(specular_map_enabled)
+		flag_filter |= SceneNode::SPECULAR_MAP;
 
 	for(SceneNode* node : visible_nodes)
 	{

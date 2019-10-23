@@ -53,8 +53,10 @@ cbuffer ps_material : register(b2)
 
 Texture2D tex_diffuse : register(t0);
 Texture2D tex_normal : register(t1);
+Texture2D tex_specular : register(t2);
 SamplerState sampler_diffuse;
 SamplerState sampler_normal;
+SamplerState sampler_specular;
 
 struct VS_INPUT
 {
@@ -148,6 +150,14 @@ float4 ps_main(VS_OUTPUT In) : SV_TARGET
 #else
 	float3 normal = In.normal;
 #endif
+
+	float spec_int;
+#ifdef SPECULAR_MAP
+	float4 spec_tex = tex_specular.Sample(sampler_specular, In.tex);
+	spec_int = spec_tex.r + (1.f - spec_tex.a) * specular_intensity;
+#else
+	spec_int = specular_intensity;
+#endif
 	
 #ifdef DIR_LIGHT
 	float specular = 0;
@@ -157,7 +167,7 @@ float4 ps_main(VS_OUTPUT In) : SV_TARGET
 		color = saturate(color + (light_color * light_intensity));
 		
 		float3 reflection = normalize(2 * light_intensity * normal - light_dir);
-		specular = pow(saturate(dot(reflection, In.view_dir)), specular_hardness) * specular_intensity;
+		specular = pow(saturate(dot(reflection, In.view_dir)), specular_hardness) * spec_int;
 	}
 	tex.xyz = saturate((tex.xyz * color.xyz) + specular_color * specular);
 #elif defined(POINT_LIGHT)
@@ -172,7 +182,7 @@ float4 ps_main(VS_OUTPUT In) : SV_TARGET
 		{
 			color.xyz += light_intensity * lights[i].color;
 			float3 reflection = normalize(2 * light_intensity * normal - light_vec);
-			specular += pow(saturate(dot(reflection, normalize(In.view_dir))), specular_hardness) * specular_intensity * falloff;
+			specular += pow(saturate(dot(reflection, normalize(In.view_dir))), specular_hardness) * spec_int * falloff;
 		}
 	}
 	specular = saturate(specular);

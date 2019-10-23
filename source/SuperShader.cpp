@@ -9,8 +9,8 @@
 #include <d3dcompiler.h>
 
 //=================================================================================================
-SuperShader::SuperShader() : sampler_diffuse(nullptr), sampler_normal(nullptr), vs_globals(nullptr), vs_locals(nullptr), ps_globals(nullptr),
-ps_locals(nullptr), ps_material(nullptr), tex_normal(nullptr)
+SuperShader::SuperShader() : sampler_diffuse(nullptr), sampler_normal(nullptr), sampler_specular(nullptr), vs_globals(nullptr), vs_locals(nullptr),
+ps_globals(nullptr), ps_locals(nullptr), ps_material(nullptr), tex_normal(nullptr), tex_specular(nullptr)
 {
 	try
 	{
@@ -33,12 +33,14 @@ SuperShader::~SuperShader()
 	}
 	SafeRelease(sampler_diffuse);
 	SafeRelease(sampler_normal);
+	SafeRelease(sampler_specular);
 	SafeRelease(vs_globals);
 	SafeRelease(vs_locals);
 	SafeRelease(ps_globals);
 	SafeRelease(ps_locals);
 	SafeRelease(ps_material);
 	SafeRelease(tex_normal);
+	SafeRelease(tex_specular);
 }
 
 //=================================================================================================
@@ -48,7 +50,10 @@ void SuperShader::Init()
 
 	sampler_diffuse = app::render->CreateSampler();
 	sampler_normal = app::render->CreateSampler();
+	sampler_specular = app::render->CreateSampler();
+
 	tex_normal = app::render->CreateTexture(Int2(1, 1), &Color(128, 128, 255));
+	tex_specular = app::render->CreateTexture(Int2(1, 1), &Color::None);
 
 	vs_globals = app::render->CreateConstantBuffer(sizeof(VertexGlobals));
 	vs_locals = app::render->CreateConstantBuffer(sizeof(VertexLocals));
@@ -105,7 +110,8 @@ void SuperShader::Prepare(Camera& camera)
 	ps.fog_params = Vec4(fog_range.x, fog_range.y, fog_range.y - fog_range.x, 0);
 	device_context->Unmap(ps_globals, 0);
 
-	device_context->PSSetSamplers(0, 1, &sampler_diffuse);
+	ID3D11SamplerState* samplers[] = { sampler_diffuse, sampler_normal, sampler_specular };
+	device_context->PSSetSamplers(0, 3, samplers);
 	ID3D11Buffer* vs_constants[] = { vs_globals, vs_locals };
 	device_context->VSSetConstantBuffers(0, 2, vs_constants);
 	ID3D11Buffer* ps_constants[] = { ps_globals, ps_locals, ps_material };
@@ -123,9 +129,7 @@ void SuperShader::SetShader(uint id)
 
 	set_lights = IsSet(id, 1 << POINT_LIGHT);
 	set_normal_map = IsSet(id, 1 << NORMAL_MAP);
-
-	if(set_normal_map)
-		device_context->PSSetSamplers(1, 1, &sampler_normal);
+	set_specular_map = IsSet(id, 1 << SPECULAR_MAP);
 }
 
 //=================================================================================================
@@ -289,6 +293,8 @@ void SuperShader::Draw(SceneNode* node)
 		device_context->PSSetShaderResources(0, 1, &sub.tex->tex);
 		if(set_normal_map)
 			device_context->PSSetShaderResources(1, 1, sub.tex_normal ? &sub.tex_normal->tex : &tex_normal);
+		if(set_specular_map)
+			device_context->PSSetShaderResources(2, 1, sub.tex_specular ? &sub.tex_specular->tex : &tex_specular);
 
 		// draw submesh
 		device_context->DrawIndexed(sub.tris * 3, sub.first * 3, sub.min_ind);
