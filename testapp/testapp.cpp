@@ -41,7 +41,7 @@ public:
 		scene = new Scene;
 		camera = new FpsCamera;
 		app::scene_mgr->SetActiveScene(scene);
-		app::scene_mgr->SetCamera(camera);
+		app::scene_mgr->SetActiveCamera(camera);
 		app::res_mgr->AddDir("data");
 		scene->clear_color = Color(0xFF0094FF);
 		scene->use_fog = true;
