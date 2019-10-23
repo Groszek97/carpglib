@@ -51,8 +51,8 @@ cbuffer ps_material : register(b2)
 	float specular_intensity;
 };
 
-Texture2D tex_diffuse;
-Texture2D tex_normal;
+Texture2D tex_diffuse : register(t0);
+Texture2D tex_normal : register(t1);
 SamplerState sampler_diffuse;
 SamplerState sampler_normal;
 
@@ -143,12 +143,11 @@ float4 ps_main(VS_OUTPUT In) : SV_TARGET
 	float4 color = ambient_color;
 	
 #ifdef NORMAL_MAP
-	float3 bump = tex_normal.Sample(sampler_normal, In.tex) * 2.f - 1.f;
+	float3 bump = tex_normal.Sample(sampler_normal, In.tex).xyz * 2.f - 1.f;
 	float3 normal = normalize(bump.x * In.tangent + (-bump.y) * In.binormal + bump.z * In.normal);
 #else
 	float3 normal = In.normal;
 #endif
-return float4(normal, 1);
 	
 #ifdef DIR_LIGHT
 	float specular = 0;
