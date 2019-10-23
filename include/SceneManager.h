@@ -11,7 +11,11 @@ public:
 	void Update(float dt);
 	void Add(Scene* scene) { assert(scene); scenes.push_back(scene); }
 	void Add(Camera* camera) { assert(camera); cameras.push_back(camera); }
+
+	Camera* GetActiveCamera() const { return camera; }
+	Scene* GetActiveScene() const { return scene; }
 	Vec4 GetClearColor() const;
+
 	void SetActive(Scene* scene) { this->scene = scene; }
 	void SetActive(Camera* camera) { this->camera = camera; }
 

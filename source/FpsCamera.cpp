@@ -22,6 +22,7 @@ void FpsCamera::LookAt(const Vec3& pos)
 	else if(pitch < -pitch_limit)
 		pitch = -pitch_limit;
 	rot_changed = true;
+	Update(0.f);
 }
 
 //=================================================================================================
