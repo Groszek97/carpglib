@@ -179,7 +179,7 @@ public:
 		DrawArea(color, rect.LeftTop(), rect.Size(), clip_rect);
 	}
 	void SetLayout(Layout* layout);
-	Layout* GetLayout() const { return master_layout; }
+	Layout* GetLayout() const { assert(master_layout); return master_layout; }
 	void DrawArea(const Box2d& rect, const AreaLayout& area_layout, const Box2d* clip_rect = nullptr, Color* tint = nullptr);
 	void SetOverlay(Overlay* overlay) { this->overlay = overlay; }
 	Overlay* GetOverlay() const { return overlay; }

@@ -103,3 +103,9 @@ void Button::Update(float dt)
 	else
 		state = NONE;
 }
+
+//=================================================================================================
+void Button::SetDisabled(bool disabled)
+{
+	state = disabled ? DISABLED : NONE;
+}

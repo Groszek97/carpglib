@@ -39,6 +39,7 @@ public:
 
 	DialogEvent GetHandler() const { return handler; }
 
+	void SetDisabled(bool disabled) override;
 	void SetHandler(DialogEvent new_handler) { handler = new_handler; }
 
 	string text;
